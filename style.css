@@ -12,17 +12,41 @@ body {
 .board {
   border: 1px solid #ccc;
   padding: 10px;
-  width: 220px;
+  width: 260px;              /* a bit wider to fit 3x3 nicely */
+  box-sizing: border-box;
 }
 
 .board h2 {
   margin-top: 0;
   font-size: 1.1rem;
+  text-align: center;
 }
 
-.item {
-  margin: 2px 0;
+/* 3×3 grid for ONSCREEN boards */
+.board .items {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
 }
+
+/* base style for onscreen cells */
+.board .item {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4px;
+}
+
+/* keep this for shared behavior */
+.item {
+  margin: 0;
+}
+
 
 /* older covered items */
 .item.covered {
