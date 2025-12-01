@@ -101,6 +101,59 @@ body {
   text-align: center;
 }
 
+/* Mode controls */
+#modeControls {
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+
+#modeControls label {
+  margin-left: 6px;
+  margin-right: 6px;
+}
+
+/* human side chooser hidden unless 1-player */
+#humanSideContainer {
+  display: none;
+}
+
+#modeControls.one-player #humanSideContainer {
+  display: inline;
+}
+
+/* Highlight current player's board */
+.board.current-turn {
+  border: 3px solid #4CAF50;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
+  background-color: #f6fff6;
+  transition: 0.25s;
+}
+
+/* Centered board roll button – you already added something like this */
+.boardRollBtn {
+  margin-top: 10px;
+  width: 70%;
+  padding: 14px 0;
+  font-size: 1.1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+.boardLog {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: #444;
+  background: #f3f3f3;
+  padding: 6px 4px;
+  border-radius: 6px;
+}
+
 
 #log {
   white-space: pre-line;

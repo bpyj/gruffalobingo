@@ -12,6 +12,19 @@
 
     <!-- On-screen game UI -->
     <div id="gameUI">
+      <div id="modeControls">
+        <strong>Mode:</strong>
+        <label><input type="radio" name="gameMode" value="two" checked> 2 Players</label>
+        <label><input type="radio" name="gameMode" value="one"> 1 Player</label>
+
+        <span id="humanSideContainer">
+          &nbsp;|&nbsp;
+          <strong>You play:</strong>
+          <label><input type="radio" name="humanSide" value="mouse" checked> Mouse</label>
+          <label><input type="radio" name="humanSide" value="gruffalo"> Gruffalo</label>
+        </span>
+      </div>
+
       <div>
         <strong>Next player:</strong> <span id="currentPlayerLabel">Mouse</span><br>
         <strong>Last roll by:</strong> <span id="lastPlayerLabel">-</span>
@@ -37,6 +50,8 @@
         <h2>Mouse</h2>
         <div class="items"></div>
 
+        <!-- NEW: Latest Log -->
+        <div class="boardLog" id="mouseBoardLog">Latest: -</div>
         <!-- NEW: Mouse roll button -->
         <button class="boardRollBtn" data-player="mouse">Roll Dice</button>
       </div>
@@ -45,6 +60,9 @@
         <h2>Gruffalo</h2>
         <div class="items"></div>
 
+        <!-- NEW: Latest Log -->
+        <div class="boardLog" id="gruffaloBoardLog">Latest: -</div>
+        
         <!-- NEW: Gruffalo roll button -->
         <button class="boardRollBtn" data-player="gruffalo">Roll Dice</button>
       </div>
