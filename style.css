@@ -101,6 +101,12 @@ body {
   text-align: center;
 }
 
+/* Dice icons inside the roll button */
+.boardRollBtn .die-face {
+  font-size: 2rem;
+  margin: 0 6px;
+}
+
 /* Mode controls */
 #modeControls {
   margin-bottom: 10px;
@@ -145,14 +151,18 @@ body {
 
 .boardLog {
   margin-top: 8px;
-  text-align: center;
+  text-align: left;
   font-size: 0.9rem;
-  font-style: italic;
   color: #444;
   background: #f3f3f3;
-  padding: 6px 4px;
+  padding: 10px;
   border-radius: 6px;
+  border: 1px solid #ccc;     /* ← THIS IS THE BORDER */
+  min-height: 80px;
+  white-space: pre-line;
 }
+
+
 
 
 #log {

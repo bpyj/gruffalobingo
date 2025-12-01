@@ -115,13 +115,12 @@ function readModeFromUI() {
     modeControls.classList.remove("one-player");
   }
 }
-// display current player's log
-function updateBoardLog(player, total, pictureId, action) {
-  const el = document.getElementById(player + "BoardLog");
-  if (!el) return;
 
-  const label = pictureId ? (prettyNames[pictureId] || pictureId) : "-";
-  el.textContent = `Latest: Rolled ${total} → ${label}: ${action}`;
+function resetBoardLogs() {
+  const mouseLog = document.getElementById("mouseBoardLog");
+  const gruffLog = document.getElementById("gruffaloBoardLog");
+  if (mouseLog) mouseLog.textContent = "Roll the dice to begin!";
+  if (gruffLog) gruffLog.textContent = "Roll the dice to begin!";
 }
 
 
@@ -183,6 +182,12 @@ function renderKeyHorizontal() {
   table.appendChild(headerRow);
   table.appendChild(pictureRow);
 }
+
+function dieFace(n) {
+  const faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+  return faces[n - 1] || "🎲";
+}
+
 
 // ----- Render Boards (screen) -----
 function renderBoards() {
@@ -263,6 +268,22 @@ function rollDie() {
   return Math.floor(Math.random() * 6) + 1;
 }
 
+// display current player's log
+function updateBoardLog(player, d1, d2, total, pictureId, actionText) {
+  const el = document.getElementById(player + "BoardLog");
+  if (!el) return;
+
+  const pictureLabel = pictureId
+    ? (prettyNames[pictureId] || pictureId)
+    : "-";
+
+  el.innerText =
+    `Dice: ${d1} + ${d2}\n` +
+    `Total: ${total}\n` +
+    `Picture: ${pictureLabel}\n` +
+    `Action: ${actionText}`;
+}
+
 function takeTurn(player) {
   if (gameOver) return;
 
@@ -274,6 +295,15 @@ function takeTurn(player) {
   const total = d1 + d2;
   const picture = sumToPicture[total];
 
+  // Update the button for this player to show dice icons
+  const btn = document.querySelector(`.boardRollBtn[data-player="${actualPlayer}"]`);
+  if (btn) {
+    btn.innerHTML = `
+      <span class="die-face">${dieFace(d1)}</span>
+      <span class="die-face">${dieFace(d2)}</span>
+    `;
+  }
+
   log(`\n${capitalize(actualPlayer)} rolled ${d1} + ${d2} = ${total}.`);
 
   diceResult.textContent = `Dice: ${d1} + ${d2}`;
@@ -282,7 +312,7 @@ function takeTurn(player) {
 
   if (!picture) {
     log("No picture for this total.");
-    updateBoardLog(actualPlayer, total, null, "no picture");
+    updateBoardLog(actualPlayer, d1, d2, total, null, "No picture for this total");
     switchToNextPlayer(actualPlayer);
     return;
   }
@@ -291,14 +321,14 @@ function takeTurn(player) {
 
   if (!boardPics.includes(picture)) {
     log(`${prettyNames[picture]} is NOT on ${actualPlayer}'s board.`);
-    updateBoardLog(actualPlayer, total, picture, "not on board");
+    updateBoardLog(actualPlayer, d1, d2, total, picture, "Not on board");
     switchToNextPlayer(actualPlayer);
     return;
   }
 
   if (covered[actualPlayer].has(picture)) {
     log(`${prettyNames[picture]} is ALREADY covered.`);
-    updateBoardLog(actualPlayer, total, picture, "already covered");
+    updateBoardLog(actualPlayer, d1, d2, total, picture, "Already covered");
     switchToNextPlayer(actualPlayer);
     return;
   }
@@ -308,13 +338,13 @@ function takeTurn(player) {
   covered[actualPlayer].add(picture);
 
   log(`${capitalize(actualPlayer)} covers ${prettyNames[picture]}.`);
-  updateBoardLog(actualPlayer, total, picture, "covered");
+  updateBoardLog(actualPlayer, d1, d2, total, picture, `${prettyNames[picture]} covered`);
 
   renderBoards();
 
   if (hasWon(actualPlayer)) {
     log(`\n*** ${capitalize(actualPlayer)} shouts "Gruffalo Bingo!" ***`);
-    updateBoardLog(actualPlayer, total, picture, "🎉 Gruffalo Bingo!");
+    updateBoardLog(actualPlayer, d1, d2, total, picture, "🎉 Gruffalo Bingo!");
     gameOver = true;
     updateRollButtonsEnabled();
     updateBoardHighlight();
@@ -323,6 +353,8 @@ function takeTurn(player) {
 
   switchToNextPlayer(actualPlayer);
 }
+
+
 
 
 function switchToNextPlayer(playerJustPlayed) {
@@ -354,7 +386,6 @@ function resetGame() {
   lastCovered = { mouse: null, gruffalo: null };
   gameOver = false;
 
-  // choose starting player
   if (gameMode === "one" && humanPlayer) {
     currentPlayer = humanPlayer;
   } else {
@@ -368,12 +399,18 @@ function resetGame() {
   pictureResult.textContent = "Picture: -";
   logDiv.textContent = "Game reset.";
 
+  resetBoardLogs();
+
+  // Reset the buttons back to "Roll Dice"
+  document.querySelectorAll(".boardRollBtn").forEach(btn => {
+    btn.textContent = "Roll Dice";
+  });
+
   renderBoards();
   renderPrintBoards();
   updateBoardHighlight();
   updateRollButtonsEnabled();
 
-  // In 1-player mode: if computer happens to start (unlikely by design), auto-roll
   if (gameMode === "one" && currentPlayer === computerPlayer) {
     setTimeout(() => {
       if (!gameOver && currentPlayer === computerPlayer) {
@@ -382,6 +419,7 @@ function resetGame() {
     }, 600);
   }
 }
+
 
 // ----- New Boards -----
 function generateNewBoards() {
