@@ -63,10 +63,10 @@ let lastCovered = { mouse: null, gruffalo: null };
 // who will roll next
 let currentPlayer = "mouse";
 
+// ----- DOM refs -----
 const keyTable = document.getElementById("keyTable");
 const currentPlayerLabel = document.getElementById("currentPlayerLabel");
 const lastPlayerLabel = document.getElementById("lastPlayerLabel");
-const rollBtn = document.getElementById("rollBtn");
 const resetBtn = document.getElementById("resetBtn");
 const newBoardsBtn = document.getElementById("newBoardsBtn");
 const printBtn = document.getElementById("printBtn");
@@ -89,18 +89,37 @@ function sampleDistinct(arr, n) {
 }
 
 // ----- Render Dice Key (vertical, on-screen) -----
-function renderKeyVertical() {
-  keyTable.innerHTML = "<tr><th>Total</th><th>Picture</th></tr>";
-  for (const total of Object.keys(sumToPicture).map(Number).sort((a, b) => a - b)) {
-    const row = document.createElement("tr");
-    const pic = sumToPicture[total];
-    row.innerHTML = `
-      <td>${total}</td>
-      <td>${prettyNames[pic] || pic}</td>
-    `;
-    keyTable.appendChild(row);
-  }
+function renderKeyHorizontal() {
+  const table = document.getElementById("keyTable");
+  table.innerHTML = "";
+
+  const totals = Object.keys(sumToPicture).map(Number).sort((a,b)=>a-b);
+
+  // Header row (totals)
+  const headerRow = document.createElement("tr");
+  headerRow.appendChild(document.createElement("th")); // empty corner
+  totals.forEach(t => {
+    const th = document.createElement("th");
+    th.textContent = t;
+    headerRow.appendChild(th);
+  });
+
+  // Picture row
+  const pictureRow = document.createElement("tr");
+  const labelCell = document.createElement("th");
+  labelCell.textContent = "Picture";
+  pictureRow.appendChild(labelCell);
+
+  totals.forEach(t => {
+    const td = document.createElement("td");
+    td.textContent = prettyNames[sumToPicture[t]];
+    pictureRow.appendChild(td);
+  });
+
+  table.appendChild(headerRow);
+  table.appendChild(pictureRow);
 }
+
 
 // ----- Render Boards (screen) -----
 function renderBoards() {
@@ -181,9 +200,9 @@ function rollDie() {
   return Math.floor(Math.random() * 6) + 1;
 }
 
-function takeTurn() {
-  const player = currentPlayer;
-  lastPlayerLabel.textContent = capitalize(player);
+function takeTurn(player) {
+  const actualPlayer = player;
+  lastPlayerLabel.textContent = capitalize(actualPlayer);
 
   const d1 = rollDie();
   const d2 = rollDie();
@@ -194,50 +213,53 @@ function takeTurn() {
   sumResult.textContent = `Total: ${total}`;
   pictureResult.textContent = `Picture: ${prettyNames[picture] || "-"}`;
 
-  log(`\n${capitalize(player)} rolled ${d1} + ${d2} = ${total}.`);
+  log(`\n${capitalize(actualPlayer)} rolled ${d1} + ${d2} = ${total}.`);
 
   if (!picture) {
     log("No picture for this total.");
-    switchToNextPlayer(player);
+    switchToNextPlayer(actualPlayer);
     return;
   }
 
-  const boardPics = boards[player];
+  const boardPics = boards[actualPlayer];
 
   if (!boardPics.includes(picture)) {
-    log(`${prettyNames[picture]} is NOT on ${player}'s board.`);
-    switchToNextPlayer(player);
+    log(`${prettyNames[picture]} is NOT on ${actualPlayer}'s board.`);
+    switchToNextPlayer(actualPlayer);
     return;
   }
 
-  if (covered[player].has(picture)) {
+  if (covered[actualPlayer].has(picture)) {
     log(`${prettyNames[picture]} is ALREADY covered.`);
-    switchToNextPlayer(player);
+    switchToNextPlayer(actualPlayer);
     return;
   }
 
   // mark this as the most recently covered picture
-  lastCovered[player] = picture;
+  lastCovered[actualPlayer] = picture;
 
   // cover it
-  covered[player].add(picture);
-  log(`${capitalize(player)} covers ${prettyNames[picture]}.`);
+  covered[actualPlayer].add(picture);
+  log(`${capitalize(actualPlayer)} covers ${prettyNames[picture]}.`);
   renderBoards(); // apply .covered and .latest
 
-  if (hasWon(player)) {
-    log(`\n*** ${capitalize(player)} shouts "Gruffalo Bingo!" ***`);
-    rollBtn.disabled = true;
+  if (hasWon(actualPlayer)) {
+    log(`\n*** ${capitalize(actualPlayer)} shouts "Gruffalo Bingo!" ***`);
     currentPlayerLabel.textContent = "Game over";
+    // disable both board roll buttons
+    document.querySelectorAll(".boardRollBtn").forEach(b => (b.disabled = true));
     return;
   }
 
-  switchToNextPlayer(player);
+  switchToNextPlayer(actualPlayer);
 }
 
 function switchToNextPlayer(playerJustPlayed) {
   currentPlayer = playerJustPlayed === "mouse" ? "gruffalo" : "mouse";
   currentPlayerLabel.textContent = capitalize(currentPlayer);
+  updateBoardHighlight();
 }
+
 
 function hasWon(playerKey) {
   return covered[playerKey].size === boards[playerKey].length;
@@ -257,7 +279,12 @@ function resetGame() {
   sumResult.textContent = "Total: -";
   pictureResult.textContent = "Picture: -";
   logDiv.textContent = "Game reset.";
-  rollBtn.disabled = false;
+
+  updateBoardHighlight();
+
+  // re-enable board roll buttons
+  document.querySelectorAll(".boardRollBtn").forEach(b => (b.disabled = false));
+
   renderBoards();
   renderPrintBoards();
 }
@@ -280,14 +307,36 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function updateBoardHighlight() {
+  document.getElementById("mouseBoard").classList.remove("current-turn");
+  document.getElementById("gruffaloBoard").classList.remove("current-turn");
+
+  document
+    .getElementById(currentPlayer + "Board")
+    .classList.add("current-turn");
+}
+
+
 // ----- Init -----
 renderBoards();
-renderKeyVertical();
+renderKeyHorizontal();
 renderPrintBoards();
 renderPrintKeys();
+updateBoardHighlight();      // ★ add this line
 log("Game ready. Mouse starts.");
 
-rollBtn.addEventListener("click", takeTurn);
+// Board-specific Roll buttons
+document.querySelectorAll(".boardRollBtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const player = btn.dataset.player;
+    if (player !== currentPlayer) {
+      log(`It's ${capitalize(currentPlayer)}'s turn.`);
+      return;
+    }
+    takeTurn(player);
+  });
+});
+
 resetBtn.addEventListener("click", resetGame);
 newBoardsBtn.addEventListener("click", generateNewBoards);
 printBtn.addEventListener("click", () => window.print());

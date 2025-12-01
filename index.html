@@ -6,76 +6,84 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Gruffalo Bingo</h1>
+  <div id="appWrapper">
 
-  <!-- On-screen game UI -->
-  <div id="gameUI">
-    <div>
-      <strong>Next player:</strong> <span id="currentPlayerLabel">Mouse</span><br>
-      <strong>Last roll by:</strong> <span id="lastPlayerLabel">-</span>
+    <h1>Gruffalo Bingo</h1>
+
+    <!-- On-screen game UI -->
+    <div id="gameUI">
+      <div>
+        <strong>Next player:</strong> <span id="currentPlayerLabel">Mouse</span><br>
+        <strong>Last roll by:</strong> <span id="lastPlayerLabel">-</span>
+      </div>
+
+      <div style="margin: 10px 0;">
+        <button id="resetBtn">Reset Game</button>
+        <button id="newBoardsBtn">New Boards</button>
+        <button id="printBtn">Print Boards</button>
+      </div>
+
+      <div>
+        <span id="diceResult">Dice: -</span> |
+        <span id="sumResult">Total: -</span> |
+        <span id="pictureResult">Picture: -</span>
+      </div>
     </div>
 
-    <div style="margin: 10px 0;">
-      <button id="rollBtn">Roll Dice</button>
-      <button id="resetBtn">Reset Game</button>
-      <button id="newBoardsBtn">New Boards</button>
-      <button id="printBtn">Print Boards</button>
+    <!-- On-screen boards -->
+    <h3 id="boardsTitle">Boards</h3>
+    <div class="boards" id="screenBoards">
+      <div class="board" id="mouseBoard">
+        <h2>Mouse</h2>
+        <div class="items"></div>
+
+        <!-- NEW: Mouse roll button -->
+        <button class="boardRollBtn" data-player="mouse">Roll Dice</button>
+      </div>
+
+      <div class="board" id="gruffaloBoard">
+        <h2>Gruffalo</h2>
+        <div class="items"></div>
+
+        <!-- NEW: Gruffalo roll button -->
+        <button class="boardRollBtn" data-player="gruffalo">Roll Dice</button>
+      </div>
     </div>
 
-    <div>
-      <span id="diceResult">Dice: -</span> |
-      <span id="sumResult">Total: -</span> |
-      <span id="pictureResult">Picture: -</span>
+
+    <!-- On-screen vertical dice key -->
+    <h3 id="diceKeyHeader">Dice Key</h3>
+    <table class="horizontalKeyTable" id="keyTable"></table>
+
+
+    <h3 id="logTitle">Log</h3>
+    <div id="log"></div>
+
+    <!-- PRINT PAGE 1: Mouse -->
+    <div class="print-page" id="printMouse">
+      <h2>Mouse Board</h2>
+      <div class="print-board">
+        <h2>Mouse</h2>
+        <div class="items" id="mouseBoardPrint"></div>
+      </div>
+
+      <h3>Dice Key</h3>
+      <table class="horizontalKeyTable" id="keyTableMousePrint"></table>
     </div>
+
+    <!-- PRINT PAGE 2: Gruffalo -->
+    <div class="print-page" id="printGruffalo">
+      <h2>Gruffalo Board</h2>
+      <div class="print-board">
+        <h2>Gruffalo</h2>
+        <div class="items" id="gruffaloBoardPrint"></div>
+      </div>
+
+      <h3>Dice Key</h3>
+      <table class="horizontalKeyTable" id="keyTableGruffaloPrint"></table>
+    </div>
+
+    <script src="script.js"></script>
   </div>
-
-  <!-- On-screen boards -->
-  <h3 id="boardsTitle">Boards</h3>
-  <div class="boards" id="screenBoards">
-    <div class="board" id="mouseBoard">
-      <h2>Mouse</h2>
-      <div class="items"></div>
-    </div>
-    <div class="board" id="gruffaloBoard">
-      <h2>Gruffalo</h2>
-      <div class="items"></div>
-    </div>
-  </div>
-
-  <!-- On-screen vertical dice key -->
-  <h3 id="diceKeyHeader">Dice Key (Total → Picture)</h3>
-  <table class="keyTable" id="keyTable">
-    <tr><th>Total</th><th>Picture</th></tr>
-  </table>
-
-  <h3 id="logTitle">Log</h3>
-  <div id="log"></div>
-
-  <!-- PRINT PAGE 1: Mouse -->
-  <div class="print-page" id="printMouse">
-    <h2>Mouse Board</h2>
-    <div class="print-board">
-      <h2>Mouse</h2>
-      <div class="items" id="mouseBoardPrint"></div>
-    </div>
-
-    <h3>Dice Key</h3>
-    <table class="horizontalKeyTable" id="keyTableMousePrint"></table>
-  </div>
-
-  <!-- PRINT PAGE 2: Gruffalo -->
-  <div class="print-page" id="printGruffalo">
-    <h2>Gruffalo Board</h2>
-    <div class="print-board">
-      <h2>Gruffalo</h2>
-      <div class="items" id="gruffaloBoardPrint"></div>
-    </div>
-
-    <h3>Dice Key</h3>
-    <table class="horizontalKeyTable" id="keyTableGruffaloPrint"></table>
-  </div>
-
-  <script src="script.js"></script>
 </body>
 </html>
-
