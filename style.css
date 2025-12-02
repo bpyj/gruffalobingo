@@ -13,9 +13,9 @@ body {
   font-family: Arial, sans-serif;
   text-align: center;
 
-  /* Forest background */
+  /* Forest background for desktop/tablet */
   background: #f0f9f0 url("images/forest-bg2.png") no-repeat center top;
-  background-size: 1248px 832px;   /* exact PNG size so content sits inside */
+  background-size: 1248px 832px;   /* match PNG size */
 }
 
 /* Main content wrapper – keep boards inside the forest */
@@ -349,5 +349,55 @@ button {
 
   .horizontalKeyTable th {
     background: #eee;
+  }
+}
+
+/* =========================
+   MOBILE TWEAKS
+   ========================= */
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+    /* Let the forest fill the whole screen – no flat green below */
+    background-size: cover;
+    background-position: center top;
+  }
+
+  #appWrapper {
+    max-width: 100%;
+  }
+
+  .boards {
+    gap: 16px;
+    margin: 10px auto;
+  }
+
+  .board {
+    width: 290px;
+    padding: 8px;
+  }
+
+  .board .item {
+    min-height: 44px;
+    padding: 2px;
+    font-size: 0.9rem;
+  }
+
+  .boardLog {
+    font-size: 0.8rem;
+    min-height: 60px;
+    padding: 6px;
+  }
+
+  .boardRollBtn {
+    padding: 8px 0;
+  }
+
+  .diceFaces .die {
+    font-size: 2.3rem;
+  }
+
+  #log {
+    height: 120px;
   }
 }
