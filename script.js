@@ -15,6 +15,13 @@ const sumToPicture = {
   12: "tree"
 };
 
+// Build reverse lookup: picture → total
+const pictureToTotal = {};
+for (const [total, pic] of Object.entries(sumToPicture)) {
+  pictureToTotal[pic] = Number(total);
+}
+
+
 // Initial 9-item boards (3×3)
 const boards = {
   mouse: [
@@ -223,7 +230,12 @@ function renderBoardWithState(playerKey, container) {
       div.classList.add("pending"); // highlight the one to tap
     }
 
-    div.textContent = prettyNames[pic] || pic;
+       // === New display format ===
+    const total = pictureToTotal[pic] ?? "?";
+    const pretty = prettyNames[pic] || pic;
+    const icon = pretty.split(" ")[0];  // extract emoji
+    div.textContent = `${total} → ${icon}`;
+    
     container.appendChild(div);
   });
 }
