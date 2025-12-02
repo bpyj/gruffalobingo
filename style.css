@@ -9,20 +9,19 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 20px;
-  background: #fafafa;
   box-sizing: border-box;
   font-family: Arial, sans-serif;
   text-align: center;
-  background: #f0f9f0 url("images/forest-bg2.png") no-repeat center top;
-  background-size: 1248px 832px;  /* exact size */
 
+  /* Forest background */
+  background: #f0f9f0 url("images/forest-bg2.png") no-repeat center top;
+  background-size: 1248px 832px;   /* exact PNG size so content sits inside */
 }
 
-
-/* Main content wrapper */
+/* Main content wrapper – keep boards inside the forest */
 #appWrapper {
   width: 100%;
-  max-width: 900px;             /* sweet spot for desktop + tablet */
+  max-width: 1100px;             /* a bit wider so boards stretch horizontally */
   margin: 0 auto;
 }
 
@@ -31,17 +30,18 @@ body {
    ========================= */
 .boards {
   display: flex;
-  justify-content: center;      /* centers Mouse + Gruffalo boards */
-  gap: 30px;
-  margin: 20px auto;
+  justify-content: center;       /* centers Mouse + Gruffalo boards */
+  gap: 40px;
+  margin: 16px auto;
 }
 
 .board {
   border: 1px solid #ccc;
   padding: 10px;
-  width: 260px;                 /* wide enough for 3x3 grid */
+  width: 320px;                  /* wider so text wraps less, keeps height smaller */
   box-sizing: border-box;
-  background: #fff;
+  background: #ffffffcc;         /* slight transparency over forest */
+  border-radius: 8px;
 }
 
 .board h2 {
@@ -54,7 +54,7 @@ body {
 .board.current-turn {
   border: 3px solid #4CAF50;
   box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
-  background-color: #f6fff6;
+  background-color: #f6fff6cc;
   transition: 0.25s;
 }
 
@@ -70,12 +70,13 @@ body {
 .board .item {
   border: 1px solid #ccc;
   border-radius: 4px;
-  min-height: 48px;
+  min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   padding: 4px;
+  background: #fff;
 }
 
 /* generic item class (shared) */
@@ -102,77 +103,73 @@ body {
   background-color: #fffbe6;
 }
 
-
-/* =========================
-   Board Roll Button & Dice
-   ========================= */
-.boardRollBtn {
-  width: 70%;
-  padding: 14px 0;
-  margin: 12px auto 0 auto;  /* center + spacing */
-  border-radius: 8px;
-  cursor: pointer;
-  
-  display: flex;               /* stack dice + label */
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-
-  background: #ffffff;
-  border: 2px solid #444;
-  text-align: center;
-  font-size: 1.1rem;
-  transition: 0.2s;
-}
-
-.boardRollBtn:hover {
-  background: #f0f0f0;
-}
-
-.boardRollBtn:disabled {
-  opacity: 1;     /* stays fully visible */
-  cursor: not-allowed;
-}
-
-
-/* =========================
-   Dice Faces inside Button
-   ========================= */
-.diceFaces {
-  display: flex;
-  gap: 14px;                  /* space between the two dice */
-  justify-content: center;
-  align-items: center;
-}
-
-.diceFaces .die {
-  font-size: 3.4rem;          /* Big dice for children */
-  line-height: 1;
-}
-
-/* =========================
-   “Roll Dice” Label
-   ========================= */
-.rollText {
-  font-size: 1.1rem;
-  font-weight: bold;
-}
-
 /* =========================
    Board Log (per-board latest info)
    ========================= */
 .boardLog {
   margin-top: 8px;
   text-align: left;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #444;
   background: #f3f3f3;
-  padding: 10px;
+  padding: 8px;
   border-radius: 6px;
   border: 1px solid #ccc;
-  min-height: 80px;
+  min-height: 70px;
   white-space: pre-line;        /* ensures \n from JS become line breaks */
+}
+
+/* =========================
+   Board Actions (Pass)
+   ========================= */
+.boardActions {
+  margin-top: 6px;
+  display: flex;
+  justify-content: center;
+}
+
+.passBtn {
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* =========================
+   Board Roll Button & Dice
+   ========================= */
+.boardRollBtn {
+  margin-top: 8px;
+  width: 80%;
+  padding: 10px 0;
+  font-size: 1.1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Dice faces row inside each board button */
+.diceFaces {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* Individual die icon */
+.diceFaces .die {
+  font-size: 2.6rem;        /* BIG dice icons for kids */
+  line-height: 1;
+}
+
+/* “Roll Dice” label */
+.rollText {
+  font-size: 1.0rem;
+  font-weight: bold;
 }
 
 /* =========================
@@ -198,13 +195,19 @@ body {
 }
 
 /* =========================
-   Generic Buttons
+   Generic Buttons (top controls)
    ========================= */
 button {
-  padding: 16px 28px;
-  font-size: 1.2rem;
-  margin-right: 16px;
-  border-radius: 8px;
+  font-family: inherit;
+}
+
+#resetBtn,
+#newBoardsBtn,
+#printBtn {
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  margin-right: 8px;
+  border-radius: 6px;
   cursor: pointer;
 }
 
@@ -214,34 +217,18 @@ button {
 #log {
   white-space: pre-line;
   border: 1px solid #ccc;
-  padding: 10px;
-  height: 160px;
+  padding: 8px;
+  height: 130px;            /* slightly shorter to keep within background */
   overflow-y: auto;
   margin-top: 10px;
   text-align: left;
-  background: #fff;
+  background: #ffffffdd;
+  border-radius: 6px;
 }
 
 /* =========================
    Dice Key (On-screen)
    ========================= */
-.keyTable {
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-
-.keyTable td,
-.keyTable th {
-  border: 1px solid #ccc;
-  padding: 4px 8px;
-  text-align: center;
-}
-
-.keyTable th {
-  background: #eee;
-}
-
-/* Horizontal key used on-screen and for print */
 .horizontalKeyTable {
   border-collapse: collapse;
   width: 100%;
@@ -251,8 +238,9 @@ button {
 .horizontalKeyTable th,
 .horizontalKeyTable td {
   border: 1px solid #ccc;
-  padding: 6px 8px;
+  padding: 4px 6px;
   text-align: center;
+  font-size: 0.9rem;
 }
 
 .horizontalKeyTable th {
@@ -269,11 +257,6 @@ button {
 /* =========================
    PRINT STYLES
    ========================= */
-@page {
-  size: A4 landscape;
-  margin: 12mm;
-}
-
 @media print {
   /* Hide on-screen game UI + original boards + key + log + headings */
   #gameUI,
@@ -288,25 +271,25 @@ button {
 
   @page {
     size: A4 landscape;
-    margin-top: 5mm !important;   /* was 12mm */
+    margin-top: 5mm;
     margin-bottom: 10mm;
     margin-left: 10mm;
     margin-right: 10mm;
   }
 
-  /* Use only @page margins; no extra margin here */
   body {
     font-family: Arial, sans-serif;
-    font-size: 11pt;       /* slightly smaller to fit better */
+    font-size: 11pt;
     margin: 0 !important;
     padding: 0 !important;
+    background: #fff !important;      /* no forest in print */
   }
 
   h1,
   h2,
   h3 {
     margin-top: 0;
-    margin-bottom: 4mm;    /* tighter heading spacing */
+    margin-bottom: 4mm;
   }
 
   /* Show print pages, one per sheet */
@@ -314,20 +297,13 @@ button {
     display: block;
     page-break-after: always;
     box-sizing: border-box;
-    /* optional: ensure content doesn't add extra margins */
+    margin: 0;
     padding: 0;
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-  }
-
-  .print-page h2:first-child {
-    margin-top: 0 !important;
-    padding-top: 0 !important;
   }
 
   .print-board {
     border: 1px solid #000;
-    padding: 6mm;                /* slightly less padding */
+    padding: 6mm;
     border-radius: 5px;
     width: 100%;
     box-sizing: border-box;
@@ -336,7 +312,7 @@ button {
   .print-board h2 {
     text-align: center;
     margin-top: 0;
-    margin-bottom: 3mm;          /* tighter */
+    margin-bottom: 3mm;
   }
 
   /* 3×3 matrix layout for icons on each printed board */
@@ -344,8 +320,8 @@ button {
     margin-top: 3mm;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: 20mm;        /* a bit shorter than 22mm */
-    gap: 3mm;                    /* smaller gap */
+    grid-auto-rows: 20mm;
+    gap: 3mm;
   }
 
   .print-board .item {
@@ -354,91 +330,20 @@ button {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16pt;             /* slightly smaller */
+    font-size: 16pt;
     text-align: center;
   }
 
-  /* Dice key below the board – compact spacing */
   .horizontalKeyTable {
     border-collapse: collapse;
-    margin-top: 6mm;             /* smaller margin */
+    margin-top: 6mm;
     width: 100%;
   }
 
   .horizontalKeyTable th,
   .horizontalKeyTable td {
     border: 1px solid #000;
-    padding: 3px 4px;            /* tighter padding */
-    text-align: center;
-  }
-
-  .horizontalKeyTable th {
-    background: #eee;
-  }
-}
-
-
-  body {
-    font-family: Arial, sans-serif;
-    font-size: 12pt;
-    margin: 10mm;
-  }
-
-  h1,
-  h2,
-  h3 {
-    margin-bottom: 6mm;
-  }
-
-  /* Show print pages, one per sheet */
-  .print-page {
-    display: block;
-    page-break-after: always;
-  }
-
-  .print-board {
-    border: 1px solid #000;
-    padding: 8mm;
-    border-radius: 5px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .print-board h2 {
-    text-align: center;
-    margin-top: 0;
-    margin-bottom: 4mm;
-  }
-
-  /* 3×3 matrix layout for icons on each printed board */
-  .print-board .items {
-    margin-top: 4mm;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: 22mm;
-    gap: 4mm;
-  }
-
-  .print-board .item {
-    border: 1px solid #000;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18pt;
-    text-align: center;
-  }
-
-  .horizontalKeyTable {
-    border-collapse: collapse;
-    margin-top: 10mm;
-    width: 100%;
-  }
-
-  .horizontalKeyTable th,
-  .horizontalKeyTable td {
-    border: 1px solid #000;
-    padding: 4px 6px;
+    padding: 3px 4px;
     text-align: center;
   }
 

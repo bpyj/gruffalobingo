@@ -46,45 +46,59 @@
     <!-- On-screen boards -->
     <h3 id="boardsTitle">Boards</h3>
     <div class="boards" id="screenBoards">
+
+      <!-- MOUSE BOARD -->
       <div class="board" id="mouseBoard">
         <h2>Mouse</h2>
         <div class="items"></div>
 
-        <!-- NEW: Latest Log -->
+        <!-- board log -->
         <div class="boardLog" id="mouseBoardLog">Roll the dice to begin!</div>
-        <!-- NEW: Mouse roll button -->
+
+        <!-- ONLY PASS BUTTON -->
+        <div class="boardActions">
+          <button class="passBtn" data-player="mouse">Pass</button>
+        </div>
+
+        <!-- Roll Dice button -->
         <button class="boardRollBtn" data-player="mouse">
-          <span class="diceFaces mouseDice">
+          <div class="diceFaces mouseDice">
             <span class="die">⚀</span>
             <span class="die">⚀</span>
-          </span>
-          <div class="rollText">Roll Dice</div>
+          </div>
+          <span class="rollText">Roll Dice</span>
         </button>
       </div>
 
+      <!-- GRUFFALO BOARD -->
       <div class="board" id="gruffaloBoard">
         <h2>Gruffalo</h2>
         <div class="items"></div>
 
-        <!-- NEW: Latest Log -->
+        <!-- board log -->
         <div class="boardLog" id="gruffaloBoardLog">Roll the dice to begin!</div>
-        
-        <!-- NEW: Gruffalo roll button -->
+
+        <!-- ONLY PASS BUTTON -->
+        <div class="boardActions">
+          <button class="passBtn" data-player="gruffalo">Pass</button>
+        </div>
+
+        <!-- Roll Dice button -->
         <button class="boardRollBtn" data-player="gruffalo">
-          <span class="diceFaces gruffaloDice">
+          <div class="diceFaces gruffaloDice">
             <span class="die">⚀</span>
             <span class="die">⚀</span>
-          </span>
-          <div class="rollText">Roll Dice</div>
+          </div>
+          <span class="rollText">Roll Dice</span>
         </button>
       </div>
+
     </div>
 
 
-    <!-- On-screen vertical dice key -->
+    <!-- Dice Key -->
     <h3 id="diceKeyHeader">Dice Key</h3>
     <table class="horizontalKeyTable" id="keyTable"></table>
-
 
     <h3 id="logTitle">Log</h3>
     <div id="log"></div>

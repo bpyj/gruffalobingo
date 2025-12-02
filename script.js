@@ -65,11 +65,12 @@ let covered = {
 
 let lastCovered = { mouse: null, gruffalo: null };
 
-// picture waiting to be covered by tap (per player)
+// Picture that the player must tap to cover (if any)
 let pendingCover = { mouse: null, gruffalo: null };
-
-// roll info waiting to be resolved by tap (per player)
+// Roll info associated with that pending cover or pass
 let pendingRoll = { mouse: null, gruffalo: null };
+// Whether the player must press Pass (only when nothing to cover)
+let passPending = { mouse: false, gruffalo: false };
 
 let currentPlayer = "mouse";
 let gameMode = "two";          // "two" or "one"
@@ -102,6 +103,7 @@ const mouseBoardLogEl = document.getElementById("mouseBoardLog");
 const gruffaloBoardLogEl = document.getElementById("gruffaloBoardLog");
 
 const boardRollBtns = document.querySelectorAll(".boardRollBtn");
+const passBtns = document.querySelectorAll(".passBtn");
 
 const modeControls = document.getElementById("modeControls");
 const humanSideContainer = document.getElementById("humanSideContainer");
@@ -140,13 +142,11 @@ function log(message) {
   logDiv.scrollTop = logDiv.scrollHeight;
 }
 
-// number → dice face
 function diceFace(num) {
   const faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
   return faces[num - 1] || "⚀";
 }
 
-// update dice icons in the correct board's button
 function updateDiceIcons(player, d1, d2) {
   const selector =
     player === "mouse" ? ".mouseDice .die" : ".gruffaloDice .die";
@@ -158,14 +158,14 @@ function updateDiceIcons(player, d1, d2) {
 }
 
 // =========================
-// Rendering – Dice Key
+// Dice Key rendering
 // =========================
 function renderHorizontalKey(tableEl) {
   tableEl.innerHTML = "";
   const totals = Object.keys(sumToPicture).map(Number).sort((a, b) => a - b);
 
   const headerRow = document.createElement("tr");
-  headerRow.appendChild(document.createElement("th")); // empty corner
+  headerRow.appendChild(document.createElement("th")); // corner cell
   totals.forEach((t) => {
     const th = document.createElement("th");
     th.textContent = t;
@@ -198,7 +198,7 @@ function renderPrintKeys() {
 }
 
 // =========================
-// Rendering – Boards (screen)
+// Boards – screen
 // =========================
 function renderBoards() {
   renderBoardWithState("mouse", mouseItemsContainer);
@@ -219,10 +219,8 @@ function renderBoardWithState(playerKey, container) {
       if (lastCovered[playerKey] === pic) {
         div.classList.add("latest");
       }
-    }
-
-    if (!covered[playerKey].has(pic) && pendingCover[playerKey] === pic) {
-      div.classList.add("pending"); // highlight for tap
+    } else if (pendingCover[playerKey] === pic) {
+      div.classList.add("pending"); // highlight the one to tap
     }
 
     div.textContent = prettyNames[pic] || pic;
@@ -231,7 +229,7 @@ function renderBoardWithState(playerKey, container) {
 }
 
 // =========================
-// Rendering – Boards (print)
+// Boards – print
 // =========================
 function renderPrintBoards() {
   renderBoardPlain("mouse", mouseBoardPrintContainer);
@@ -249,7 +247,7 @@ function renderBoardPlain(playerKey, container) {
 }
 
 // =========================
-// Board Logs (inside each board)
+// Board logs inside boards
 // =========================
 function updateBoardLog(player, roll, status) {
   const el = player === "mouse" ? mouseBoardLogEl : gruffaloBoardLogEl;
@@ -265,13 +263,13 @@ function updateBoardLog(player, roll, status) {
   let actionText = "";
   switch (status) {
     case "no-picture":
-      actionText = "Action: No picture for this total.";
+      actionText = "Action: No picture for this total.\nPress Pass.";
       break;
     case "not-on-board":
-      actionText = "Action: Picture not on this board.";
+      actionText = "Action: Picture not on this board.\nPress Pass.";
       break;
     case "already-covered":
-      actionText = "Action: Picture already covered.";
+      actionText = "Action: Picture already covered.\nPress Pass.";
       break;
     case "tap-to-cover":
       actionText = `Action: Tap ${picLabel} to cover it.`;
@@ -279,8 +277,11 @@ function updateBoardLog(player, roll, status) {
     case "covered":
       actionText = `Action: ${picLabel} covered.`;
       break;
+    case "pass":
+      actionText = "Action: Passed.";
+      break;
     case "bingo":
-      actionText = `Action: ${picLabel} covered. 🎉 Gruffalo Bingo!`;
+      actionText = `Action: ${picLabel} covered.\n🎉 Gruffalo Bingo!`;
       break;
     default:
       actionText = "";
@@ -294,7 +295,7 @@ function updateBoardLog(player, roll, status) {
 }
 
 // =========================
-// Game Logic – Turn flow
+// Game Logic
 // =========================
 function isHumanPlayer(player) {
   if (gameMode === "two") return true;
@@ -304,9 +305,13 @@ function isHumanPlayer(player) {
 function takeTurn(player, isComputer = false) {
   if (gameOver) return;
 
-  // if this is a human and they still have a pending cover, do not roll
-  if (!isComputer && pendingCover[player]) {
-    log(`${capitalize(player)} must tap the highlighted picture to cover it first.`);
+  // Must finish current action (tap cover or press Pass) before rolling again
+  if (!isComputer && (pendingCover[player] || passPending[player])) {
+    log(
+      `${capitalize(
+        player
+      )} must finish this turn (cover or pass) before rolling again.`
+    );
     return;
   }
 
@@ -314,7 +319,6 @@ function takeTurn(player, isComputer = false) {
   const d2 = rollDie();
   const total = d1 + d2;
   const picture = sumToPicture[total];
-  const rollInfo = { d1, d2, total, picture };
 
   lastPlayerLabel.textContent = capitalize(player);
 
@@ -325,75 +329,101 @@ function takeTurn(player, isComputer = false) {
 
   log(`\n${capitalize(player)} rolled ${d1} + ${d2} = ${total}.`);
 
-  if (!picture) {
-    log("No picture for this total.");
-    updateBoardLog(player, rollInfo, "no-picture");
-    endTurnNoAction(player);
-    return;
-  }
-
   const boardPics = boards[player];
 
-  if (!boardPics.includes(picture)) {
-    log(`${prettyNames[picture]} is NOT on ${player}'s board.`);
-    updateBoardLog(player, rollInfo, "not-on-board");
-    endTurnNoAction(player);
-    return;
-  }
+  let status;
+  let canCover = false;
 
-  if (covered[player].has(picture)) {
-    log(`${prettyNames[picture]} is ALREADY covered.`);
-    updateBoardLog(player, rollInfo, "already-covered");
-    endTurnNoAction(player);
-    return;
-  }
-
-  // At this point the picture is coverable.
-  if (isComputer || !isHumanPlayer(player)) {
-    // Computer (or non-interactive) → auto-cover
-    doCover(player, rollInfo, picture, false);
+  if (!picture) {
+    status = "no-picture";
+  } else if (!boardPics.includes(picture)) {
+    status = "not-on-board";
+  } else if (covered[player].has(picture)) {
+    status = "already-covered";
   } else {
-    // Human → require tap to cover
+    status = "tap-to-cover";
+    canCover = true;
+  }
+
+  const rollInfo = { d1, d2, total, picture };
+  pendingRoll[player] = rollInfo;
+  pendingCover[player] = null;
+  passPending[player] = false;
+
+  if (canCover) {
+    // ---- COVER CASE ----
+    if (!isHumanPlayer(player) || isComputer) {
+      // Computer auto-covers
+      doCover(player, rollInfo, picture);
+      return;
+    }
+
+    // Human: highlight tile & wait for tap
     pendingCover[player] = picture;
-    pendingRoll[player] = rollInfo;
     updateBoardLog(player, rollInfo, "tap-to-cover");
     renderBoards();
-    updateRollButtonsEnabled(); // disable roll for this player until tap
+    updateRollButtonsEnabled();
+    updatePassButtonsEnabled();
+    updateBoardHighlight();
+  } else {
+    // ---- PASS CASE ----
+    if (!isHumanPlayer(player) || isComputer) {
+      // Computer auto-passes
+      doPass(player, rollInfo, status);
+      return;
+    }
+
+    // Human: require Pass
+    passPending[player] = true;
+    updateBoardLog(player, rollInfo, status);
+    renderBoards();
+    updateRollButtonsEnabled();
+    updatePassButtonsEnabled();
+    updateBoardHighlight();
   }
 }
 
-function endTurnNoAction(player) {
-  pendingCover[player] = null;
-  pendingRoll[player] = null;
-  switchToNextPlayer(player);
-  updateRollButtonsEnabled();
-  updateBoardHighlight();
-  maybeRunComputerTurn();
-}
-
-// Perform cover (called from human tap OR auto-cover)
-function doCover(player, rollInfo, picture, fromTap) {
+function doCover(player, rollInfo, picture) {
   lastCovered[player] = picture;
   covered[player].add(picture);
   pendingCover[player] = null;
   pendingRoll[player] = null;
+  passPending[player] = false;
 
   log(`${capitalize(player)} covers ${prettyNames[picture]}.`);
-  updateBoardLog(player, rollInfo, "covered");
 
   renderBoards();
 
   if (hasWon(player)) {
     log(`\n*** ${capitalize(player)} shouts "Gruffalo Bingo!" ***`);
-    updateBoardLog(player, rollInfo, "bingo");
+    updateBoardLog(player, { ...rollInfo, picture }, "bingo");
     gameOver = true;
     updateRollButtonsEnabled();
+    updatePassButtonsEnabled();
     updateBoardHighlight();
     return;
   }
 
+  updateBoardLog(player, { ...rollInfo, picture }, "covered");
   switchToNextPlayer(player);
   updateRollButtonsEnabled();
+  updatePassButtonsEnabled();
+  updateBoardHighlight();
+  maybeRunComputerTurn();
+}
+
+function doPass(player, rollInfo, status) {
+  // Only valid to pass when there is nothing to cover
+  log(`${capitalize(player)} passes.`);
+  updateBoardLog(player, rollInfo, "pass");
+
+  pendingRoll[player] = null;
+  pendingCover[player] = null;
+  passPending[player] = false;
+
+  switchToNextPlayer(player);
+  updateRollButtonsEnabled();
+  updatePassButtonsEnabled();
   updateBoardHighlight();
   maybeRunComputerTurn();
 }
@@ -418,24 +448,21 @@ function handleBoardClick(event) {
   const pic = target.dataset.pic;
   if (!player || !pic) return;
 
-  // must be that player's turn
-  if (player !== currentPlayer || gameOver) return;
-
-  // must be a human player for tap logic
+  if (gameOver) return;
+  if (player !== currentPlayer) return;
   if (!isHumanPlayer(player)) return;
 
-  // must match pending cover
+  // Must have something pending to cover
   if (!pendingCover[player] || pendingCover[player] !== pic) return;
 
   const rollInfo = pendingRoll[player];
   if (!rollInfo) return;
 
-  // perform cover via tap
-  doCover(player, rollInfo, pic, true);
+  doCover(player, rollInfo, pic);
 }
 
 // =========================
-// Mode & Buttons
+// UI Helpers
 // =========================
 function updateRollButtonsEnabled() {
   boardRollBtns.forEach((btn) => {
@@ -443,10 +470,8 @@ function updateRollButtonsEnabled() {
     let enabled = !gameOver;
 
     if (gameMode === "two") {
-      // 2-player: only the current player's button is active
       enabled = enabled && player === currentPlayer;
     } else {
-      // 1-player: only the human side ever gets a button
       if (player !== humanSide) {
         enabled = false;
       } else {
@@ -454,12 +479,23 @@ function updateRollButtonsEnabled() {
       }
     }
 
-    // IMPORTANT: we no longer look at pendingCover[player] here,
-    // so the button stays visually "on" while waiting for the tap.
+    // We do NOT grey out based on pendingCover/passPending,
+    // logic is enforced inside takeTurn().
     btn.disabled = !enabled;
   });
 }
 
+function updatePassButtonsEnabled() {
+  passBtns.forEach((btn) => {
+    const p = btn.dataset.player;
+    let enabled =
+      !gameOver &&
+      passPending[p] &&
+      p === currentPlayer &&
+      isHumanPlayer(p);
+    btn.disabled = !enabled;
+  });
+}
 
 function updateBoardHighlight() {
   mouseBoardEl.classList.toggle(
@@ -488,7 +524,7 @@ function handleModeChange() {
     [...humanSideRadios].find((r) => r.checked)?.value || "mouse";
   humanSide = sideValue;
 
-  resetGame(false); // soft reset (keep boards, reset state)
+  resetGame(false);
 }
 
 function maybeRunComputerTurn() {
@@ -513,6 +549,7 @@ function resetGame(reRenderBoardsToo = true) {
   lastCovered = { mouse: null, gruffalo: null };
   pendingCover = { mouse: null, gruffalo: null };
   pendingRoll = { mouse: null, gruffalo: null };
+  passPending = { mouse: false, gruffalo: false };
 
   gameOver = false;
   currentPlayer = "mouse";
@@ -531,12 +568,11 @@ function resetGame(reRenderBoardsToo = true) {
     renderBoards();
     renderPrintBoards();
   }
-
-  // reset dice faces (⚀ ⚀)
   updateDiceIcons("mouse", 1, 1);
   updateDiceIcons("gruffalo", 1, 1);
 
   updateRollButtonsEnabled();
+  updatePassButtonsEnabled();
   updateBoardHighlight();
 
   // if one-player and human is not Mouse, let computer start
@@ -560,10 +596,8 @@ function generateNewBoards() {
 // Init
 // =========================
 function init() {
-  // initial dice faces
   updateDiceIcons("mouse", 1, 1);
   updateDiceIcons("gruffalo", 1, 1);
-
   renderBoards();
   renderPrintBoards();
   renderKeyOnScreen();
@@ -573,9 +607,9 @@ function init() {
   updateBoardLog("mouse", null);
   updateBoardLog("gruffalo", null);
   updateRollButtonsEnabled();
+  updatePassButtonsEnabled();
   updateBoardHighlight();
 
-  // event listeners
   resetBtn.addEventListener("click", () => resetGame(true));
   newBoardsBtn.addEventListener("click", generateNewBoards);
   printBtn.addEventListener("click", () => window.print());
@@ -590,11 +624,26 @@ function init() {
     });
   });
 
+  passBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const player = btn.dataset.player;
+      if (!player || gameOver) return;
+      if (player !== currentPlayer) return;
+      if (!isHumanPlayer(player)) return;
+      if (!passPending[player]) return;
+      const rollInfo = pendingRoll[player];
+      if (!rollInfo) return;
+      doPass(player, rollInfo, "pass");
+    });
+  });
+
   mouseBoardEl.addEventListener("click", handleBoardClick);
   gruffaloBoardEl.addEventListener("click", handleBoardClick);
 
   modeRadios.forEach((r) => r.addEventListener("change", handleModeChange));
-  humanSideRadios.forEach((r) => r.addEventListener("change", handleModeChange));
+  humanSideRadios.forEach((r) =>
+    r.addEventListener("change", handleModeChange)
+  );
 }
 
 init();
