@@ -1,28 +1,37 @@
+/* =========================
+   Base Layout
+   ========================= */
 body {
   display: flex;
   flex-direction: column;
-  align-items: center;     /* center horizontally */
+  align-items: center;          /* center horizontally */
   justify-content: flex-start;
   min-height: 100vh;
   margin: 0;
   padding: 20px;
   background: #fafafa;
   box-sizing: border-box;
-  text-align: center;
   font-family: Arial, sans-serif;
-  margin: 20px;
+  text-align: center;
+  background: #f0f9f0 url("images/forest-bg2.png") no-repeat center top;
+  background-size: 1248px 832px;  /* exact size */
+
 }
 
-/* Constrain main content width so everything stays neat */
+
+/* Main content wrapper */
 #appWrapper {
   width: 100%;
-  max-width: 900px;         /* sweet spot for desktop + tablet */
+  max-width: 900px;             /* sweet spot for desktop + tablet */
   margin: 0 auto;
 }
 
+/* =========================
+   Boards (On-screen)
+   ========================= */
 .boards {
   display: flex;
-  justify-content: center;   /* centers Mouse + Gruffalo boards */
+  justify-content: center;      /* centers Mouse + Gruffalo boards */
   gap: 30px;
   margin: 20px auto;
 }
@@ -30,8 +39,9 @@ body {
 .board {
   border: 1px solid #ccc;
   padding: 10px;
-  width: 260px;              /* a bit wider to fit 3x3 nicely */
+  width: 260px;                 /* wide enough for 3x3 grid */
   box-sizing: border-box;
+  background: #fff;
 }
 
 .board h2 {
@@ -42,12 +52,11 @@ body {
 
 /* highlight the current player's board */
 .board.current-turn {
-  border: 3px solid #4CAF50;      /* green highlight border */
+  border: 3px solid #4CAF50;
   box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
-  background-color: #f6fff6;       /* light green tint */
+  background-color: #f6fff6;
   transition: 0.25s;
 }
-
 
 /* 3×3 grid for ONSCREEN boards */
 .board .items {
@@ -69,11 +78,10 @@ body {
   padding: 4px;
 }
 
-/* keep this for shared behavior */
+/* generic item class (shared) */
 .item {
   margin: 0;
 }
-
 
 /* older covered items */
 .item.covered {
@@ -88,26 +96,88 @@ body {
   font-weight: bold !important;
 }
 
+.item.pending {
+  border-color: #ff9800;
+  box-shadow: 0 0 6px rgba(255, 152, 0, 0.7);
+  background-color: #fffbe6;
+}
+
+
+/* =========================
+   Board Roll Button & Dice
+   ========================= */
 .boardRollBtn {
-  margin-top: 10px;
-  width: 70%;                 /* button width */
+  width: 70%;
   padding: 14px 0;
-  font-size: 1.1rem;
-  border-radius: 6px;
+  margin: 12px auto 0 auto;  /* center + spacing */
+  border-radius: 8px;
   cursor: pointer;
-  display: block;             /* makes centering work */
-  margin-left: auto;
-  margin-right: auto;         /* centers the button */
+  
+  display: flex;               /* stack dice + label */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  background: #ffffff;
+  border: 2px solid #444;
   text-align: center;
+  font-size: 1.1rem;
+  transition: 0.2s;
 }
 
-/* Dice icons inside the roll button */
-.boardRollBtn .die-face {
-  font-size: 2rem;
-  margin: 0 6px;
+.boardRollBtn:hover {
+  background: #f0f0f0;
 }
 
-/* Mode controls */
+.boardRollBtn:disabled {
+  opacity: 1;     /* stays fully visible */
+  cursor: not-allowed;
+}
+
+
+/* =========================
+   Dice Faces inside Button
+   ========================= */
+.diceFaces {
+  display: flex;
+  gap: 14px;                  /* space between the two dice */
+  justify-content: center;
+  align-items: center;
+}
+
+.diceFaces .die {
+  font-size: 3.4rem;          /* Big dice for children */
+  line-height: 1;
+}
+
+/* =========================
+   “Roll Dice” Label
+   ========================= */
+.rollText {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+/* =========================
+   Board Log (per-board latest info)
+   ========================= */
+.boardLog {
+  margin-top: 8px;
+  text-align: left;
+  font-size: 0.9rem;
+  color: #444;
+  background: #f3f3f3;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  min-height: 80px;
+  white-space: pre-line;        /* ensures \n from JS become line breaks */
+}
+
+/* =========================
+   Mode Controls / Top Controls
+   ========================= */
 #modeControls {
   margin-bottom: 10px;
   font-size: 0.95rem;
@@ -127,53 +197,9 @@ body {
   display: inline;
 }
 
-/* Highlight current player's board */
-.board.current-turn {
-  border: 3px solid #4CAF50;
-  box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
-  background-color: #f6fff6;
-  transition: 0.25s;
-}
-
-/* Centered board roll button – you already added something like this */
-.boardRollBtn {
-  margin-top: 10px;
-  width: 70%;
-  padding: 14px 0;
-  font-size: 1.1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  text-align: center;
-}
-
-.boardLog {
-  margin-top: 8px;
-  text-align: left;
-  font-size: 0.9rem;
-  color: #444;
-  background: #f3f3f3;
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid #ccc;     /* ← THIS IS THE BORDER */
-  min-height: 80px;
-  white-space: pre-line;
-}
-
-
-
-
-#log {
-  white-space: pre-line;
-  border: 1px solid #ccc;
-  padding: 10px;
-  height: 160px;
-  overflow-y: auto;
-  margin-top: 10px;
-}
-
+/* =========================
+   Generic Buttons
+   ========================= */
 button {
   padding: 16px 28px;
   font-size: 1.2rem;
@@ -182,6 +208,23 @@ button {
   cursor: pointer;
 }
 
+/* =========================
+   Main Log (bottom log panel)
+   ========================= */
+#log {
+  white-space: pre-line;
+  border: 1px solid #ccc;
+  padding: 10px;
+  height: 160px;
+  overflow-y: auto;
+  margin-top: 10px;
+  text-align: left;
+  background: #fff;
+}
+
+/* =========================
+   Dice Key (On-screen)
+   ========================= */
 .keyTable {
   border-collapse: collapse;
   margin-top: 20px;
@@ -198,6 +241,7 @@ button {
   background: #eee;
 }
 
+/* Horizontal key used on-screen and for print */
 .horizontalKeyTable {
   border-collapse: collapse;
   width: 100%;
@@ -215,20 +259,23 @@ button {
   background: #f2f2f2;
 }
 
-
-/* Print-only pages (hidden on screen) */
+/* =========================
+   Print Pages (hidden on screen)
+   ========================= */
 .print-page {
   display: none;
 }
 
-/* ---------- PRINT STYLES ---------- */
+/* =========================
+   PRINT STYLES
+   ========================= */
 @page {
   size: A4 landscape;
   margin: 12mm;
 }
 
 @media print {
-  /* Hide on-screen game UI + original boards + vertical key + log + headings */
+  /* Hide on-screen game UI + original boards + key + log + headings */
   #gameUI,
   #log,
   #logTitle,
@@ -238,6 +285,98 @@ button {
   #diceKeyHeader {
     display: none !important;
   }
+
+  @page {
+    size: A4 landscape;
+    margin-top: 5mm !important;   /* was 12mm */
+    margin-bottom: 10mm;
+    margin-left: 10mm;
+    margin-right: 10mm;
+  }
+
+  /* Use only @page margins; no extra margin here */
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 11pt;       /* slightly smaller to fit better */
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  h1,
+  h2,
+  h3 {
+    margin-top: 0;
+    margin-bottom: 4mm;    /* tighter heading spacing */
+  }
+
+  /* Show print pages, one per sheet */
+  .print-page {
+    display: block;
+    page-break-after: always;
+    box-sizing: border-box;
+    /* optional: ensure content doesn't add extra margins */
+    padding: 0;
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  .print-page h2:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .print-board {
+    border: 1px solid #000;
+    padding: 6mm;                /* slightly less padding */
+    border-radius: 5px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .print-board h2 {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 3mm;          /* tighter */
+  }
+
+  /* 3×3 matrix layout for icons on each printed board */
+  .print-board .items {
+    margin-top: 3mm;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 20mm;        /* a bit shorter than 22mm */
+    gap: 3mm;                    /* smaller gap */
+  }
+
+  .print-board .item {
+    border: 1px solid #000;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16pt;             /* slightly smaller */
+    text-align: center;
+  }
+
+  /* Dice key below the board – compact spacing */
+  .horizontalKeyTable {
+    border-collapse: collapse;
+    margin-top: 6mm;             /* smaller margin */
+    width: 100%;
+  }
+
+  .horizontalKeyTable th,
+  .horizontalKeyTable td {
+    border: 1px solid #000;
+    padding: 3px 4px;            /* tighter padding */
+    text-align: center;
+  }
+
+  .horizontalKeyTable th {
+    background: #eee;
+  }
+}
+
 
   body {
     font-family: Arial, sans-serif;

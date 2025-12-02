@@ -1,4 +1,6 @@
-// ----- Data -----
+// =========================
+// Data
+// =========================
 const sumToPicture = {
   2: "mushroom",
   3: "frog",
@@ -53,6 +55,9 @@ const prettyNames = {
   tree: "🌲 Tree"
 };
 
+// =========================
+// State
+// =========================
 let covered = {
   mouse: new Set(),
   gruffalo: new Set()
@@ -60,14 +65,23 @@ let covered = {
 
 let lastCovered = { mouse: null, gruffalo: null };
 
-// game mode / players
+// picture waiting to be covered by tap (per player)
+let pendingCover = { mouse: null, gruffalo: null };
+
+// roll info waiting to be resolved by tap (per player)
+let pendingRoll = { mouse: null, gruffalo: null };
+
+let currentPlayer = "mouse";
 let gameMode = "two";          // "two" or "one"
-let humanPlayer = "mouse";     // used in 1-player mode
-let computerPlayer = "gruffalo";
-let currentPlayer = "mouse";   // whose turn it is
+let humanSide = "mouse";       // when gameMode === "one"
 let gameOver = false;
 
-// ----- DOM refs -----
+// pool of all pictures for random boards
+const allPicturesPool = [...new Set(Object.values(sumToPicture))];
+
+// =========================
+// DOM references
+// =========================
 const keyTable = document.getElementById("keyTable");
 const currentPlayerLabel = document.getElementById("currentPlayerLabel");
 const lastPlayerLabel = document.getElementById("lastPlayerLabel");
@@ -79,15 +93,30 @@ const sumResult = document.getElementById("sumResult");
 const pictureResult = document.getElementById("pictureResult");
 const logDiv = document.getElementById("log");
 
+const mouseBoardEl = document.getElementById("mouseBoard");
+const gruffaloBoardEl = document.getElementById("gruffaloBoard");
+const mouseItemsContainer = mouseBoardEl.querySelector(".items");
+const gruffaloItemsContainer = gruffaloBoardEl.querySelector(".items");
+
+const mouseBoardLogEl = document.getElementById("mouseBoardLog");
+const gruffaloBoardLogEl = document.getElementById("gruffaloBoardLog");
+
+const boardRollBtns = document.querySelectorAll(".boardRollBtn");
+
 const modeControls = document.getElementById("modeControls");
 const humanSideContainer = document.getElementById("humanSideContainer");
-const modeRadios = document.querySelectorAll('input[name="gameMode"]');
-const humanSideRadios = document.querySelectorAll('input[name="humanSide"]');
-const boardRollButtons = document.querySelectorAll(".boardRollBtn");
+const modeRadios = document.querySelectorAll("input[name='gameMode']");
+const humanSideRadios = document.querySelectorAll("input[name='humanSide']");
 
-// ----- Helpers -----
-const allPicturesPool = [...new Set(Object.values(sumToPicture))];
+// print elements
+const mouseBoardPrintContainer = document.getElementById("mouseBoardPrint");
+const gruffaloBoardPrintContainer = document.getElementById("gruffaloBoardPrint");
+const keyTableMousePrint = document.getElementById("keyTableMousePrint");
+const keyTableGruffaloPrint = document.getElementById("keyTableGruffaloPrint");
 
+// =========================
+// Helpers
+// =========================
 function sampleDistinct(arr, n) {
   const pool = [...arr];
   const out = [];
@@ -98,145 +127,46 @@ function sampleDistinct(arr, n) {
   return out;
 }
 
-// read mode + side from UI
-function readModeFromUI() {
-  const mode = [...modeRadios].find(r => r.checked)?.value || "two";
-  gameMode = mode;
+function rollDie() {
+  return Math.floor(Math.random() * 6) + 1;
+}
 
-  if (mode === "one") {
-    const side = [...humanSideRadios].find(r => r.checked)?.value || "mouse";
-    humanPlayer = side;
-    computerPlayer = side === "mouse" ? "gruffalo" : "mouse";
-    modeControls.classList.add("one-player");      // show human side controls
-  } else {
-    gameMode = "two";
-    humanPlayer = null;
-    computerPlayer = null;
-    modeControls.classList.remove("one-player");
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function log(message) {
+  logDiv.textContent += message + "\n";
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+// number → dice face
+function diceFace(num) {
+  const faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+  return faces[num - 1] || "⚀";
+}
+
+// update dice icons in the correct board's button
+function updateDiceIcons(player, d1, d2) {
+  const selector =
+    player === "mouse" ? ".mouseDice .die" : ".gruffaloDice .die";
+  const diceEls = document.querySelectorAll(selector);
+  if (diceEls.length >= 2) {
+    diceEls[0].textContent = diceFace(d1);
+    diceEls[1].textContent = diceFace(d2);
   }
 }
 
-function resetBoardLogs() {
-  const mouseLog = document.getElementById("mouseBoardLog");
-  const gruffLog = document.getElementById("gruffaloBoardLog");
-  if (mouseLog) mouseLog.textContent = "Roll the dice to begin!";
-  if (gruffLog) gruffLog.textContent = "Roll the dice to begin!";
-}
-
-
-// highlight current player's board
-function updateBoardHighlight() {
-  const mouseBoard = document.getElementById("mouseBoard");
-  const gruffaloBoard = document.getElementById("gruffaloBoard");
-
-  mouseBoard.classList.toggle("current-turn", currentPlayer === "mouse");
-  gruffaloBoard.classList.toggle("current-turn", currentPlayer === "gruffalo");
-}
-
-
-// adjust which buttons are enabled based on mode & gameOver
-function updateRollButtonsEnabled() {
-  boardRollButtons.forEach(btn => {
-    const p = btn.dataset.player;
-
-    if (gameOver) {
-      btn.disabled = true;
-      return;
-    }
-
-    if (gameMode === "one" && p === computerPlayer) {
-      // computer's board cannot be clicked
-      btn.disabled = true;
-    } else {
-      btn.disabled = false;
-    }
-  });
-}
-
-// ----- Render Dice Key (horizontal, on-screen) -----
-function renderKeyHorizontal() {
-  const table = keyTable;
-  table.innerHTML = "";
-
-  const totals = Object.keys(sumToPicture).map(Number).sort((a, b) => a - b);
-
-  const headerRow = document.createElement("tr");
-  headerRow.appendChild(document.createElement("th")); // empty corner
-  totals.forEach(t => {
-    const th = document.createElement("th");
-    th.textContent = t;
-    headerRow.appendChild(th);
-  });
-
-  const pictureRow = document.createElement("tr");
-  const labelCell = document.createElement("th");
-  labelCell.textContent = "Picture";
-  pictureRow.appendChild(labelCell);
-
-  totals.forEach(t => {
-    const td = document.createElement("td");
-    td.textContent = prettyNames[sumToPicture[t]];
-    pictureRow.appendChild(td);
-  });
-
-  table.appendChild(headerRow);
-  table.appendChild(pictureRow);
-}
-
-function dieFace(n) {
-  const faces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
-  return faces[n - 1] || "🎲";
-}
-
-
-// ----- Render Boards (screen) -----
-function renderBoards() {
-  renderBoardWithCovered("mouse", document.querySelector("#mouseBoard .items"));
-  renderBoardWithCovered("gruffalo", document.querySelector("#gruffaloBoard .items"));
-}
-
-function renderBoardWithCovered(playerKey, container) {
-  container.innerHTML = "";
-  boards[playerKey].forEach(pic => {
-    const div = document.createElement("div");
-    div.className = "item";
-
-    if (covered[playerKey].has(pic)) {
-      div.classList.add("covered");
-      if (lastCovered[playerKey] === pic) {
-        div.classList.add("latest");
-      }
-    }
-
-    div.textContent = prettyNames[pic] || pic;
-    container.appendChild(div);
-  });
-}
-
-// ----- Render PRINT boards (no covered marks) -----
-function renderPrintBoards() {
-  renderBoardPlain("mouse", document.getElementById("mouseBoardPrint"));
-  renderBoardPlain("gruffalo", document.getElementById("gruffaloBoardPrint"));
-}
-
-function renderBoardPlain(playerKey, container) {
-  container.innerHTML = "";
-  boards[playerKey].forEach(pic => {
-    const div = document.createElement("div");
-    div.className = "item";
-    div.textContent = prettyNames[pic] || pic;
-    container.appendChild(div);
-  });
-}
-
-// ----- Render horizontal dice keys for print -----
+// =========================
+// Rendering – Dice Key
+// =========================
 function renderHorizontalKey(tableEl) {
   tableEl.innerHTML = "";
   const totals = Object.keys(sumToPicture).map(Number).sort((a, b) => a - b);
 
   const headerRow = document.createElement("tr");
   headerRow.appendChild(document.createElement("th")); // empty corner
-  totals.forEach(t => {
+  totals.forEach((t) => {
     const th = document.createElement("th");
     th.textContent = t;
     headerRow.appendChild(th);
@@ -247,7 +177,7 @@ function renderHorizontalKey(tableEl) {
   labelCell.textContent = "Picture";
   picRow.appendChild(labelCell);
 
-  totals.forEach(t => {
+  totals.forEach((t) => {
     const td = document.createElement("td");
     const picId = sumToPicture[t];
     td.textContent = prettyNames[picId] || picId;
@@ -258,240 +188,413 @@ function renderHorizontalKey(tableEl) {
   tableEl.appendChild(picRow);
 }
 
+function renderKeyOnScreen() {
+  renderHorizontalKey(keyTable);
+}
+
 function renderPrintKeys() {
-  renderHorizontalKey(document.getElementById("keyTableMousePrint"));
-  renderHorizontalKey(document.getElementById("keyTableGruffaloPrint"));
+  renderHorizontalKey(keyTableMousePrint);
+  renderHorizontalKey(keyTableGruffaloPrint);
 }
 
-// ----- Game Logic -----
-function rollDie() {
-  return Math.floor(Math.random() * 6) + 1;
+// =========================
+// Rendering – Boards (screen)
+// =========================
+function renderBoards() {
+  renderBoardWithState("mouse", mouseItemsContainer);
+  renderBoardWithState("gruffalo", gruffaloItemsContainer);
 }
 
-// display current player's log
-function updateBoardLog(player, d1, d2, total, pictureId, actionText) {
-  const el = document.getElementById(player + "BoardLog");
-  if (!el) return;
+function renderBoardWithState(playerKey, container) {
+  container.innerHTML = "";
 
-  const pictureLabel = pictureId
-    ? (prettyNames[pictureId] || pictureId)
-    : "-";
+  boards[playerKey].forEach((pic) => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.dataset.player = playerKey;
+    div.dataset.pic = pic;
+
+    if (covered[playerKey].has(pic)) {
+      div.classList.add("covered");
+      if (lastCovered[playerKey] === pic) {
+        div.classList.add("latest");
+      }
+    }
+
+    if (!covered[playerKey].has(pic) && pendingCover[playerKey] === pic) {
+      div.classList.add("pending"); // highlight for tap
+    }
+
+    div.textContent = prettyNames[pic] || pic;
+    container.appendChild(div);
+  });
+}
+
+// =========================
+// Rendering – Boards (print)
+// =========================
+function renderPrintBoards() {
+  renderBoardPlain("mouse", mouseBoardPrintContainer);
+  renderBoardPlain("gruffalo", gruffaloBoardPrintContainer);
+}
+
+function renderBoardPlain(playerKey, container) {
+  container.innerHTML = "";
+  boards[playerKey].forEach((pic) => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.textContent = prettyNames[pic] || pic;
+    container.appendChild(div);
+  });
+}
+
+// =========================
+// Board Logs (inside each board)
+// =========================
+function updateBoardLog(player, roll, status) {
+  const el = player === "mouse" ? mouseBoardLogEl : gruffaloBoardLogEl;
+
+  if (!roll) {
+    el.innerText = "Roll the dice to begin!";
+    return;
+  }
+
+  const { d1, d2, total, picture } = roll;
+  const picLabel = picture ? prettyNames[picture] || picture : "-";
+
+  let actionText = "";
+  switch (status) {
+    case "no-picture":
+      actionText = "Action: No picture for this total.";
+      break;
+    case "not-on-board":
+      actionText = "Action: Picture not on this board.";
+      break;
+    case "already-covered":
+      actionText = "Action: Picture already covered.";
+      break;
+    case "tap-to-cover":
+      actionText = `Action: Tap ${picLabel} to cover it.`;
+      break;
+    case "covered":
+      actionText = `Action: ${picLabel} covered.`;
+      break;
+    case "bingo":
+      actionText = `Action: ${picLabel} covered. 🎉 Gruffalo Bingo!`;
+      break;
+    default:
+      actionText = "";
+  }
 
   el.innerText =
     `Dice: ${d1} + ${d2}\n` +
     `Total: ${total}\n` +
-    `Picture: ${pictureLabel}\n` +
-    `Action: ${actionText}`;
+    `Picture: ${picLabel}\n` +
+    actionText;
 }
 
-function takeTurn(player) {
+// =========================
+// Game Logic – Turn flow
+// =========================
+function isHumanPlayer(player) {
+  if (gameMode === "two") return true;
+  return player === humanSide;
+}
+
+function takeTurn(player, isComputer = false) {
   if (gameOver) return;
 
-  const actualPlayer = player;
-  lastPlayerLabel.textContent = capitalize(actualPlayer);
+  // if this is a human and they still have a pending cover, do not roll
+  if (!isComputer && pendingCover[player]) {
+    log(`${capitalize(player)} must tap the highlighted picture to cover it first.`);
+    return;
+  }
 
   const d1 = rollDie();
   const d2 = rollDie();
   const total = d1 + d2;
   const picture = sumToPicture[total];
+  const rollInfo = { d1, d2, total, picture };
 
-  // Update the button for this player to show dice icons
-  const btn = document.querySelector(`.boardRollBtn[data-player="${actualPlayer}"]`);
-  if (btn) {
-    btn.innerHTML = `
-      <span class="die-face">${dieFace(d1)}</span>
-      <span class="die-face">${dieFace(d2)}</span>
-    `;
-  }
-
-  log(`\n${capitalize(actualPlayer)} rolled ${d1} + ${d2} = ${total}.`);
+  lastPlayerLabel.textContent = capitalize(player);
 
   diceResult.textContent = `Dice: ${d1} + ${d2}`;
   sumResult.textContent = `Total: ${total}`;
   pictureResult.textContent = `Picture: ${prettyNames[picture] || "-"}`;
+  updateDiceIcons(player, d1, d2);
+
+  log(`\n${capitalize(player)} rolled ${d1} + ${d2} = ${total}.`);
 
   if (!picture) {
     log("No picture for this total.");
-    updateBoardLog(actualPlayer, d1, d2, total, null, "No picture for this total");
-    switchToNextPlayer(actualPlayer);
+    updateBoardLog(player, rollInfo, "no-picture");
+    endTurnNoAction(player);
     return;
   }
 
-  const boardPics = boards[actualPlayer];
+  const boardPics = boards[player];
 
   if (!boardPics.includes(picture)) {
-    log(`${prettyNames[picture]} is NOT on ${actualPlayer}'s board.`);
-    updateBoardLog(actualPlayer, d1, d2, total, picture, "Not on board");
-    switchToNextPlayer(actualPlayer);
+    log(`${prettyNames[picture]} is NOT on ${player}'s board.`);
+    updateBoardLog(player, rollInfo, "not-on-board");
+    endTurnNoAction(player);
     return;
   }
 
-  if (covered[actualPlayer].has(picture)) {
+  if (covered[player].has(picture)) {
     log(`${prettyNames[picture]} is ALREADY covered.`);
-    updateBoardLog(actualPlayer, d1, d2, total, picture, "Already covered");
-    switchToNextPlayer(actualPlayer);
+    updateBoardLog(player, rollInfo, "already-covered");
+    endTurnNoAction(player);
     return;
   }
 
-  // mark latest cover
-  lastCovered[actualPlayer] = picture;
-  covered[actualPlayer].add(picture);
+  // At this point the picture is coverable.
+  if (isComputer || !isHumanPlayer(player)) {
+    // Computer (or non-interactive) → auto-cover
+    doCover(player, rollInfo, picture, false);
+  } else {
+    // Human → require tap to cover
+    pendingCover[player] = picture;
+    pendingRoll[player] = rollInfo;
+    updateBoardLog(player, rollInfo, "tap-to-cover");
+    renderBoards();
+    updateRollButtonsEnabled(); // disable roll for this player until tap
+  }
+}
 
-  log(`${capitalize(actualPlayer)} covers ${prettyNames[picture]}.`);
-  updateBoardLog(actualPlayer, d1, d2, total, picture, `${prettyNames[picture]} covered`);
+function endTurnNoAction(player) {
+  pendingCover[player] = null;
+  pendingRoll[player] = null;
+  switchToNextPlayer(player);
+  updateRollButtonsEnabled();
+  updateBoardHighlight();
+  maybeRunComputerTurn();
+}
+
+// Perform cover (called from human tap OR auto-cover)
+function doCover(player, rollInfo, picture, fromTap) {
+  lastCovered[player] = picture;
+  covered[player].add(picture);
+  pendingCover[player] = null;
+  pendingRoll[player] = null;
+
+  log(`${capitalize(player)} covers ${prettyNames[picture]}.`);
+  updateBoardLog(player, rollInfo, "covered");
 
   renderBoards();
 
-  if (hasWon(actualPlayer)) {
-    log(`\n*** ${capitalize(actualPlayer)} shouts "Gruffalo Bingo!" ***`);
-    updateBoardLog(actualPlayer, d1, d2, total, picture, "🎉 Gruffalo Bingo!");
+  if (hasWon(player)) {
+    log(`\n*** ${capitalize(player)} shouts "Gruffalo Bingo!" ***`);
+    updateBoardLog(player, rollInfo, "bingo");
     gameOver = true;
     updateRollButtonsEnabled();
     updateBoardHighlight();
     return;
   }
 
-  switchToNextPlayer(actualPlayer);
-}
-
-
-
-
-function switchToNextPlayer(playerJustPlayed) {
-  if (gameOver) return;
-
-  currentPlayer = playerJustPlayed === "mouse" ? "gruffalo" : "mouse";
-  currentPlayerLabel.textContent = capitalize(currentPlayer);
+  switchToNextPlayer(player);
+  updateRollButtonsEnabled();
   updateBoardHighlight();
-
-  // In 1-player mode, auto-roll for computer
-  if (gameMode === "one" && currentPlayer === computerPlayer) {
-    setTimeout(() => {
-      if (!gameOver && currentPlayer === computerPlayer) {
-        takeTurn(computerPlayer);
-      }
-    }, 600);
-  }
+  maybeRunComputerTurn();
 }
 
 function hasWon(playerKey) {
   return covered[playerKey].size === boards[playerKey].length;
 }
 
-function resetGame() {
+function switchToNextPlayer(playerJustPlayed) {
+  currentPlayer = playerJustPlayed === "mouse" ? "gruffalo" : "mouse";
+  currentPlayerLabel.textContent = capitalize(currentPlayer);
+}
+
+// =========================
+// Board click – human taps a cell to cover
+// =========================
+function handleBoardClick(event) {
+  const target = event.target.closest(".item");
+  if (!target) return;
+
+  const player = target.dataset.player;
+  const pic = target.dataset.pic;
+  if (!player || !pic) return;
+
+  // must be that player's turn
+  if (player !== currentPlayer || gameOver) return;
+
+  // must be a human player for tap logic
+  if (!isHumanPlayer(player)) return;
+
+  // must match pending cover
+  if (!pendingCover[player] || pendingCover[player] !== pic) return;
+
+  const rollInfo = pendingRoll[player];
+  if (!rollInfo) return;
+
+  // perform cover via tap
+  doCover(player, rollInfo, pic, true);
+}
+
+// =========================
+// Mode & Buttons
+// =========================
+function updateRollButtonsEnabled() {
+  boardRollBtns.forEach((btn) => {
+    const player = btn.dataset.player;
+    let enabled = !gameOver;
+
+    if (gameMode === "two") {
+      // 2-player: only the current player's button is active
+      enabled = enabled && player === currentPlayer;
+    } else {
+      // 1-player: only the human side ever gets a button
+      if (player !== humanSide) {
+        enabled = false;
+      } else {
+        enabled = enabled && player === currentPlayer;
+      }
+    }
+
+    // IMPORTANT: we no longer look at pendingCover[player] here,
+    // so the button stays visually "on" while waiting for the tap.
+    btn.disabled = !enabled;
+  });
+}
+
+
+function updateBoardHighlight() {
+  mouseBoardEl.classList.toggle(
+    "current-turn",
+    currentPlayer === "mouse" && !gameOver
+  );
+  gruffaloBoardEl.classList.toggle(
+    "current-turn",
+    currentPlayer === "gruffalo" && !gameOver
+  );
+}
+
+function handleModeChange() {
+  const modeValue = [...modeRadios].find((r) => r.checked)?.value || "two";
+  gameMode = modeValue;
+
+  if (gameMode === "one") {
+    modeControls.classList.add("one-player");
+    humanSideContainer.style.display = "inline";
+  } else {
+    modeControls.classList.remove("one-player");
+    humanSideContainer.style.display = "none";
+  }
+
+  const sideValue =
+    [...humanSideRadios].find((r) => r.checked)?.value || "mouse";
+  humanSide = sideValue;
+
+  resetGame(false); // soft reset (keep boards, reset state)
+}
+
+function maybeRunComputerTurn() {
+  if (gameMode !== "one" || gameOver) return;
+  if (currentPlayer === humanSide) return;
+
+  setTimeout(() => {
+    if (!gameOver && currentPlayer !== humanSide) {
+      takeTurn(currentPlayer, true);
+    }
+  }, 600);
+}
+
+// =========================
+// Reset & New Boards
+// =========================
+function resetGame(reRenderBoardsToo = true) {
   covered = {
     mouse: new Set(),
     gruffalo: new Set()
   };
   lastCovered = { mouse: null, gruffalo: null };
+  pendingCover = { mouse: null, gruffalo: null };
+  pendingRoll = { mouse: null, gruffalo: null };
+
   gameOver = false;
-
-  if (gameMode === "one" && humanPlayer) {
-    currentPlayer = humanPlayer;
-  } else {
-    currentPlayer = "mouse";
-  }
-
-  currentPlayerLabel.textContent = capitalize(currentPlayer);
+  currentPlayer = "mouse";
+  currentPlayerLabel.textContent = "Mouse";
   lastPlayerLabel.textContent = "-";
+
   diceResult.textContent = "Dice: -";
   sumResult.textContent = "Total: -";
   pictureResult.textContent = "Picture: -";
+
   logDiv.textContent = "Game reset.";
+  updateBoardLog("mouse", null);
+  updateBoardLog("gruffalo", null);
 
-  resetBoardLogs();
+  if (reRenderBoardsToo) {
+    renderBoards();
+    renderPrintBoards();
+  }
 
-  // Reset the buttons back to "Roll Dice"
-  document.querySelectorAll(".boardRollBtn").forEach(btn => {
-    btn.textContent = "Roll Dice";
-  });
+  // reset dice faces (⚀ ⚀)
+  updateDiceIcons("mouse", 1, 1);
+  updateDiceIcons("gruffalo", 1, 1);
 
-  renderBoards();
-  renderPrintBoards();
-  updateBoardHighlight();
   updateRollButtonsEnabled();
+  updateBoardHighlight();
 
-  if (gameMode === "one" && currentPlayer === computerPlayer) {
-    setTimeout(() => {
-      if (!gameOver && currentPlayer === computerPlayer) {
-        takeTurn(computerPlayer);
-      }
-    }, 600);
+  // if one-player and human is not Mouse, let computer start
+  if (gameMode === "one" && humanSide !== "mouse") {
+    currentPlayer = "mouse";
+    currentPlayerLabel.textContent = "Mouse";
+    updateBoardHighlight();
+    maybeRunComputerTurn();
   }
 }
 
-
-// ----- New Boards -----
 function generateNewBoards() {
   boards.mouse = sampleDistinct(allPicturesPool, 9);
   boards.gruffalo = sampleDistinct(allPicturesPool, 9);
   log("Generating new random boards…");
-  resetGame();
+  renderPrintBoards();
+  resetGame(true);
 }
 
-function log(message) {
-  logDiv.textContent += message + "\n";
-  logDiv.scrollTop = logDiv.scrollHeight;
+// =========================
+// Init
+// =========================
+function init() {
+  // initial dice faces
+  updateDiceIcons("mouse", 1, 1);
+  updateDiceIcons("gruffalo", 1, 1);
+
+  renderBoards();
+  renderPrintBoards();
+  renderKeyOnScreen();
+  renderPrintKeys();
+  log("Game ready. Mouse starts.");
+
+  updateBoardLog("mouse", null);
+  updateBoardLog("gruffalo", null);
+  updateRollButtonsEnabled();
+  updateBoardHighlight();
+
+  // event listeners
+  resetBtn.addEventListener("click", () => resetGame(true));
+  newBoardsBtn.addEventListener("click", generateNewBoards);
+  printBtn.addEventListener("click", () => window.print());
+
+  boardRollBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const player = btn.dataset.player;
+      if (!player || gameOver) return;
+      if (gameMode === "one" && player !== humanSide) return;
+      if (player !== currentPlayer) return;
+      takeTurn(player, false);
+    });
+  });
+
+  mouseBoardEl.addEventListener("click", handleBoardClick);
+  gruffaloBoardEl.addEventListener("click", handleBoardClick);
+
+  modeRadios.forEach((r) => r.addEventListener("change", handleModeChange));
+  humanSideRadios.forEach((r) => r.addEventListener("change", handleModeChange));
 }
 
-function capitalize(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-// ----- Init -----
-renderBoards();        // initial (will be overwritten by reset)
-renderKeyHorizontal();
-renderPrintBoards();
-renderPrintKeys();
-
-// read initial mode from UI + apply
-readModeFromUI();
-resetGame();
-log(
-  gameMode === "two"
-    ? "2-player mode. Mouse starts."
-    : `1-player mode. You play ${capitalize(humanPlayer)}.`
-);
-
-// Board-specific Roll buttons
-boardRollButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
-    const player = btn.dataset.player;
-
-    if (gameOver) {
-      log("Game is over. Please reset.");
-      return;
-    }
-
-    if (gameMode === "one" && player !== humanPlayer) {
-      log("In 1-player mode only your board can be used.");
-      return;
-    }
-
-    if (player !== currentPlayer) {
-      log(`It's ${capitalize(currentPlayer)}'s turn.`);
-      return;
-    }
-
-    takeTurn(player);
-  });
-});
-
-// Mode change handlers
-modeRadios.forEach(r => {
-  r.addEventListener("change", () => {
-    readModeFromUI();
-    resetGame();
-  });
-});
-
-humanSideRadios.forEach(r => {
-  r.addEventListener("change", () => {
-    readModeFromUI();
-    resetGame();
-  });
-});
-
-resetBtn.addEventListener("click", resetGame);
-newBoardsBtn.addEventListener("click", generateNewBoards);
-printBtn.addEventListener("click", () => window.print());
+init();
