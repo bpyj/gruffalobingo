@@ -12,15 +12,8 @@ const sumToPicture = {
   9: "snake",
   10: "green_leaves",
   11: "red_squirrel",
-  12: "tree"
+  12: "tree",
 };
-
-// Build reverse lookup: picture → total
-const pictureToTotal = {};
-for (const [total, pic] of Object.entries(sumToPicture)) {
-  pictureToTotal[pic] = Number(total);
-}
-
 
 // Initial 9-item boards (3×3)
 const boards = {
@@ -33,7 +26,7 @@ const boards = {
     "flowers",
     "mushroom",
     "snake",
-    "red_squirrel"
+    "red_squirrel",
   ],
   gruffalo: [
     "owl",
@@ -44,8 +37,8 @@ const boards = {
     "green_leaves",
     "flowers",
     "brown_leaf",
-    "red_squirrel"
-  ]
+    "red_squirrel",
+  ],
 };
 
 const prettyNames = {
@@ -59,33 +52,42 @@ const prettyNames = {
   snake: "🐍 Snake",
   green_leaves: "🍃 Green Leaves",
   red_squirrel: "🐿️ Red Squirrel",
-  tree: "🌲 Tree"
+  tree: "🌲 Tree",
 };
+
+// inverse mapping: picture -> dice total
+const pictureToTotal = {};
+Object.entries(sumToPicture).forEach(([total, pic]) => {
+  pictureToTotal[pic] = Number(total);
+});
+
+// pool of all pictures for random boards
+const allPicturesPool = [...new Set(Object.values(sumToPicture))];
 
 // =========================
 // State
 // =========================
 let covered = {
   mouse: new Set(),
-  gruffalo: new Set()
+  gruffalo: new Set(),
 };
 
 let lastCovered = { mouse: null, gruffalo: null };
 
-// Picture that the player must tap to cover (if any)
+// picture that a human must tap to cover
 let pendingCover = { mouse: null, gruffalo: null };
-// Roll info associated with that pending cover or pass
+
+// roll info waiting for either "cover by tap" or "pass"
 let pendingRoll = { mouse: null, gruffalo: null };
-// Whether the player must press Pass (only when nothing to cover)
+
+// true if the *only* allowed decision is "pass"
 let passPending = { mouse: false, gruffalo: false };
 
 let currentPlayer = "mouse";
-let gameMode = "two";          // "two" or "one"
-let humanSide = "mouse";       // when gameMode === "one"
+let gameMode = "two"; // "two" or "one"
+let humanSide = "mouse"; // in 1-player mode
 let gameOver = false;
-
-// pool of all pictures for random boards
-const allPicturesPool = [...new Set(Object.values(sumToPicture))];
+let winnerPlayer = null;
 
 // =========================
 // DOM references
@@ -164,6 +166,11 @@ function updateDiceIcons(player, d1, d2) {
   }
 }
 
+function isHumanPlayer(player) {
+  if (gameMode === "two") return true;
+  return player === humanSide;
+}
+
 // =========================
 // Dice Key rendering
 // =========================
@@ -172,7 +179,7 @@ function renderHorizontalKey(tableEl) {
   const totals = Object.keys(sumToPicture).map(Number).sort((a, b) => a - b);
 
   const headerRow = document.createElement("tr");
-  headerRow.appendChild(document.createElement("th")); // corner cell
+  headerRow.appendChild(document.createElement("th")); // corner
   totals.forEach((t) => {
     const th = document.createElement("th");
     th.textContent = t;
@@ -227,15 +234,15 @@ function renderBoardWithState(playerKey, container) {
         div.classList.add("latest");
       }
     } else if (pendingCover[playerKey] === pic) {
-      div.classList.add("pending"); // highlight the one to tap
+      div.classList.add("pending");
     }
 
-       // === New display format ===
-    const total = pictureToTotal[pic] ?? "?";
-    const pretty = prettyNames[pic] || pic;
-    const icon = pretty.split(" ")[0];  // extract emoji
-    div.textContent = `${total} → ${icon}`;
-    
+    const total = pictureToTotal[pic];
+    const fullLabel = prettyNames[pic] || pic;
+    const iconOnly = fullLabel.split(" ")[0] || fullLabel;
+
+    // Number → icon (e.g. "2 → 🍄")
+    div.textContent = `${total ?? "?"} → ${iconOnly}`;
     container.appendChild(div);
   });
 }
@@ -309,15 +316,10 @@ function updateBoardLog(player, roll, status) {
 // =========================
 // Game Logic
 // =========================
-function isHumanPlayer(player) {
-  if (gameMode === "two") return true;
-  return player === humanSide;
-}
-
 function takeTurn(player, isComputer = false) {
   if (gameOver) return;
 
-  // Must finish current action (tap cover or press Pass) before rolling again
+  // Must finish current decision (tap to cover or pass) before rolling again
   if (!isComputer && (pendingCover[player] || passPending[player])) {
     log(
       `${capitalize(
@@ -342,8 +344,7 @@ function takeTurn(player, isComputer = false) {
   log(`\n${capitalize(player)} rolled ${d1} + ${d2} = ${total}.`);
 
   const boardPics = boards[player];
-
-  let status;
+  let status = "";
   let canCover = false;
 
   if (!picture) {
@@ -363,29 +364,27 @@ function takeTurn(player, isComputer = false) {
   passPending[player] = false;
 
   if (canCover) {
-    // ---- COVER CASE ----
+    // Covering path
     if (!isHumanPlayer(player) || isComputer) {
-      // Computer auto-covers
+      // computer auto-covers
       doCover(player, rollInfo, picture);
       return;
     }
 
-    // Human: highlight tile & wait for tap
+    // human: must tap the highlighted item
     pendingCover[player] = picture;
-    updateBoardLog(player, rollInfo, "tap-to-cover");
+    updateBoardLog(player, rollInfo, status);
     renderBoards();
     updateRollButtonsEnabled();
     updatePassButtonsEnabled();
     updateBoardHighlight();
   } else {
-    // ---- PASS CASE ----
+    // Must pass
     if (!isHumanPlayer(player) || isComputer) {
-      // Computer auto-passes
-      doPass(player, rollInfo, status);
+      doPass(player, rollInfo);
       return;
     }
 
-    // Human: require Pass
     passPending[player] = true;
     updateBoardLog(player, rollInfo, status);
     renderBoards();
@@ -403,20 +402,21 @@ function doCover(player, rollInfo, picture) {
   passPending[player] = false;
 
   log(`${capitalize(player)} covers ${prettyNames[picture]}.`);
-
   renderBoards();
 
   if (hasWon(player)) {
     log(`\n*** ${capitalize(player)} shouts "Gruffalo Bingo!" ***`);
-    updateBoardLog(player, { ...rollInfo, picture }, "bingo");
+    winnerPlayer = player;
+    updateBoardLog(player, rollInfo, "bingo");
     gameOver = true;
     updateRollButtonsEnabled();
     updatePassButtonsEnabled();
     updateBoardHighlight();
+    triggerConfettiOnBoard(player);
     return;
   }
 
-  updateBoardLog(player, { ...rollInfo, picture }, "covered");
+  updateBoardLog(player, rollInfo, "covered");
   switchToNextPlayer(player);
   updateRollButtonsEnabled();
   updatePassButtonsEnabled();
@@ -424,15 +424,13 @@ function doCover(player, rollInfo, picture) {
   maybeRunComputerTurn();
 }
 
-function doPass(player, rollInfo, status) {
-  // Only valid to pass when there is nothing to cover
+function doPass(player, rollInfo) {
   log(`${capitalize(player)} passes.`);
-  updateBoardLog(player, rollInfo, "pass");
-
   pendingRoll[player] = null;
   pendingCover[player] = null;
   passPending[player] = false;
 
+  updateBoardLog(player, rollInfo, "pass");
   switchToNextPlayer(player);
   updateRollButtonsEnabled();
   updatePassButtonsEnabled();
@@ -463,8 +461,6 @@ function handleBoardClick(event) {
   if (gameOver) return;
   if (player !== currentPlayer) return;
   if (!isHumanPlayer(player)) return;
-
-  // Must have something pending to cover
   if (!pendingCover[player] || pendingCover[player] !== pic) return;
 
   const rollInfo = pendingRoll[player];
@@ -491,8 +487,8 @@ function updateRollButtonsEnabled() {
       }
     }
 
-    // We do NOT grey out based on pendingCover/passPending,
-    // logic is enforced inside takeTurn().
+    // NOTE: we do NOT disable for pendingCover / passPending,
+    // so the dice box never visually "fades"; logic blocks in takeTurn().
     btn.disabled = !enabled;
   });
 }
@@ -510,14 +506,23 @@ function updatePassButtonsEnabled() {
 }
 
 function updateBoardHighlight() {
-  mouseBoardEl.classList.toggle(
-    "current-turn",
-    currentPlayer === "mouse" && !gameOver
-  );
-  gruffaloBoardEl.classList.toggle(
-    "current-turn",
-    currentPlayer === "gruffalo" && !gameOver
-  );
+  mouseBoardEl.classList.remove("current-turn");
+  gruffaloBoardEl.classList.remove("current-turn");
+
+  if (gameOver && winnerPlayer) {
+    if (winnerPlayer === "mouse") {
+      mouseBoardEl.classList.add("current-turn");
+    } else if (winnerPlayer === "gruffalo") {
+      gruffaloBoardEl.classList.add("current-turn");
+    }
+    return;
+  }
+
+  if (currentPlayer === "mouse") {
+    mouseBoardEl.classList.add("current-turn");
+  } else {
+    gruffaloBoardEl.classList.add("current-turn");
+  }
 }
 
 function handleModeChange() {
@@ -551,12 +556,54 @@ function maybeRunComputerTurn() {
 }
 
 // =========================
+// Confetti
+// =========================
+function triggerConfettiOnBoard(player) {
+  const boardEl = player === "mouse" ? mouseBoardEl : gruffaloBoardEl;
+  if (!boardEl) return;
+
+  const existing = boardEl.querySelector(".confetti-container");
+  if (existing) {
+    existing.remove();
+  }
+
+  const container = document.createElement("div");
+  container.className = "confetti-container";
+  boardEl.appendChild(container);
+
+  const colors = ["#ff5252", "#ffb300", "#4caf50", "#2196f3", "#9c27b0"];
+
+  const pieces = 60;
+  for (let i = 0; i < pieces; i++) {
+    const piece = document.createElement("div");
+    piece.className = "confetti-piece";
+    const left = Math.random() * 100;
+    const delay = Math.random() * 0.4;
+    const duration = 1 + Math.random() * 0.7;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    piece.style.left = left + "%";
+    piece.style.top = "-10px";
+    piece.style.backgroundColor = color;
+    piece.style.animationDuration = duration + "s";
+    piece.style.animationDelay = delay + "s";
+
+    container.appendChild(piece);
+  }
+
+  // remove container after animation finishes
+  setTimeout(() => {
+    container.remove();
+  }, 2500);
+}
+
+// =========================
 // Reset & New Boards
 // =========================
 function resetGame(reRenderBoardsToo = true) {
   covered = {
     mouse: new Set(),
-    gruffalo: new Set()
+    gruffalo: new Set(),
   };
   lastCovered = { mouse: null, gruffalo: null };
   pendingCover = { mouse: null, gruffalo: null };
@@ -564,6 +611,7 @@ function resetGame(reRenderBoardsToo = true) {
   passPending = { mouse: false, gruffalo: false };
 
   gameOver = false;
+  winnerPlayer = null;
   currentPlayer = "mouse";
   currentPlayerLabel.textContent = "Mouse";
   lastPlayerLabel.textContent = "-";
@@ -640,12 +688,10 @@ function init() {
     btn.addEventListener("click", () => {
       const player = btn.dataset.player;
       if (!player || gameOver) return;
-      if (player !== currentPlayer) return;
       if (!isHumanPlayer(player)) return;
-      if (!passPending[player]) return;
-      const rollInfo = pendingRoll[player];
-      if (!rollInfo) return;
-      doPass(player, rollInfo, "pass");
+      if (player !== currentPlayer) return;
+      if (!passPending[player] || !pendingRoll[player]) return;
+      doPass(player, pendingRoll[player]);
     });
   });
 

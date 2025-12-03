@@ -1,60 +1,150 @@
 /* =========================
    Base Layout
    ========================= */
-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;          /* center horizontally */
-  justify-content: flex-start;
-  min-height: 100vh;
-  margin: 0;
-  padding: 20px;
+*,
+*::before,
+*::after {
   box-sizing: border-box;
-  font-family: Arial, sans-serif;
-  text-align: center;
-
-  /* Forest background for desktop/tablet */
-  background: #f0f9f0 url("images/forest-bg2.png") no-repeat center top;
-  background-size: 1248px 832px;   /* match PNG size */
 }
 
-/* Main content wrapper – keep boards inside the forest */
+body {
+  margin: 0;
+  padding: 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: Arial, sans-serif;
+  background: #fafafa;
+  text-align: center;
+}
+
 #appWrapper {
   width: 100%;
-  max-width: 1100px;             /* a bit wider so boards stretch horizontally */
+  max-width: 960px;
   margin: 0 auto;
 }
 
 /* =========================
-   Boards (On-screen)
+   Top Section (poster area)
    ========================= */
+#topSection {
+  position: relative;
+  margin-top: 10px;
+  padding: 16px 18px 22px;
+  border-radius: 16px;
+  overflow: hidden;
+
+  /* ⭐ Poster image ONLY — no gradient */
+  background: #f0f9f0 url("images/forest-bg2.png") no-repeat center top;
+  background-size: cover; /* keep all content inside poster, allow some stretch */
+}
+
+/* ⭐ Remove gradient overlay completely */
+#topSection::before {
+  content: none;
+}
+
+/* Keep content above background */
+#topSection > * {
+  position: relative;
+}
+
+
+/* =========================
+   Controls Section
+   ========================= */
+#controlsSection {
+  margin-bottom: 10px;
+}
+
+#modeControls {
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+}
+
+#modeControls label {
+  margin: 0 6px;
+}
+
+#humanSideContainer {
+  display: none;
+}
+
+#modeControls.one-player #humanSideContainer {
+  display: inline;
+}
+
+#statusRow {
+  display: flex;
+  flex-direction: column;      /* stack text and buttons */
+  align-items: center;         /* center horizontally */
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+/* ensure the text block is centered as well */
+#statusRow > div:first-child {
+  text-align: center;
+}
+
+
+#topButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+#lastRollSummary {
+  font-size: 0.95rem;
+}
+
+/* =========================
+   Boards Section (On-screen)
+   ========================= */
+#boardSection {
+  margin-top: 10px;
+}
+
 .boards {
   display: flex;
-  justify-content: center;       /* centers Mouse + Gruffalo boards */
-  gap: 40px;
-  margin: 16px auto;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
+/* stack boards on narrow screens */
+@media (max-width: 768px) {
+  .boards {
+    flex-wrap: wrap;
+  }
 }
 
 .board {
+  position: relative; /* for confetti */
   border: 1px solid #ccc;
   padding: 10px;
-  width: 320px;                  /* wider so text wraps less, keeps height smaller */
+  width: 260px;
   box-sizing: border-box;
-  background: #ffffffcc;         /* slight transparency over forest */
-  border-radius: 8px;
+  background: #ffffffcc;
+  border-radius: 10px;
 }
 
 .board h2 {
   margin-top: 0;
+  margin-bottom: 4px;
   font-size: 1.1rem;
   text-align: center;
 }
 
-/* highlight the current player's board */
+/* highlight the current player's board (also used for winner) */
 .board.current-turn {
   border: 3px solid #4CAF50;
   box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
-  background-color: #f6fff6cc;
+  background-color: #f6fff6;
   transition: 0.25s;
 }
 
@@ -76,7 +166,7 @@ body {
   justify-content: center;
   text-align: center;
   padding: 4px;
-  background: #fff;
+  font-size: 0.9rem;
 }
 
 /* generic item class (shared) */
@@ -84,7 +174,7 @@ body {
   margin: 0;
 }
 
-/* older covered items */
+/* covered items */
 .item.covered {
   text-decoration: line-through;
   color: #999;
@@ -97,6 +187,7 @@ body {
   font-weight: bold !important;
 }
 
+/* pending cover highlight */
 .item.pending {
   border-color: #ff9800;
   box-shadow: 0 0 6px rgba(255, 152, 0, 0.7);
@@ -109,142 +200,149 @@ body {
 .boardLog {
   margin-top: 8px;
   text-align: left;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: #444;
   background: #f3f3f3;
-  padding: 8px;
+  padding: 10px;
   border-radius: 6px;
   border: 1px solid #ccc;
-  min-height: 70px;
-  white-space: pre-line;        /* ensures \n from JS become line breaks */
+  min-height: 80px;
+  white-space: pre-line; /* \n -> line breaks */
 }
 
 /* =========================
-   Board Actions (Pass)
+   Board Actions: Pass + Roll
    ========================= */
 .boardActions {
-  margin-top: 6px;
-  display: flex;
-  justify-content: center;
-}
-
-.passBtn {
-  padding: 6px 14px;
-  font-size: 0.9rem;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-/* =========================
-   Board Roll Button & Dice
-   ========================= */
-.boardRollBtn {
   margin-top: 8px;
-  width: 80%;
-  padding: 10px 0;
-  font-size: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* generic buttons */
+button {
+  padding: 10px 18px;
+  font-size: 1rem;
   border-radius: 8px;
   cursor: pointer;
+  border: 1px solid #888;
+  background: #fff;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* pass button */
+.passBtn {
+  width: 60%;
+  margin: 0 auto;
+  background: #ffe0e0;
+}
+
+/* Roll button with dice faces */
+.boardRollBtn {
+  width: 80%;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
-  margin-right: auto;
+  background: #e6f3ff;
 }
 
-/* Dice faces row inside each board button */
+/* container for dice icons inside each board's roll button */
 .diceFaces {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: center;
+  align-items: center;
 }
 
-/* Individual die icon */
 .diceFaces .die {
-  font-size: 2.6rem;        /* BIG dice icons for kids */
+  font-size: 2.8rem; /* BIG dice icons for kids */
   line-height: 1;
 }
 
-/* “Roll Dice” label */
 .rollText {
-  font-size: 1.0rem;
+  font-size: 1rem;
   font-weight: bold;
-}
-
-/* =========================
-   Mode Controls / Top Controls
-   ========================= */
-#modeControls {
-  margin-bottom: 10px;
-  font-size: 0.95rem;
-}
-
-#modeControls label {
-  margin-left: 6px;
-  margin-right: 6px;
-}
-
-/* human side chooser hidden unless 1-player */
-#humanSideContainer {
-  display: none;
-}
-
-#modeControls.one-player #humanSideContainer {
-  display: inline;
-}
-
-/* =========================
-   Generic Buttons (top controls)
-   ========================= */
-button {
-  font-family: inherit;
-}
-
-#resetBtn,
-#newBoardsBtn,
-#printBtn {
-  padding: 8px 16px;
-  font-size: 0.95rem;
-  margin-right: 8px;
-  border-radius: 6px;
-  cursor: pointer;
 }
 
 /* =========================
    Main Log (bottom log panel)
    ========================= */
+#logSection {
+  margin-top: 16px;
+}
+
 #log {
   white-space: pre-line;
   border: 1px solid #ccc;
-  padding: 8px;
-  height: 130px;            /* slightly shorter to keep within background */
+  padding: 10px;
+  height: 160px;
   overflow-y: auto;
-  margin-top: 10px;
+  margin-top: 8px;
   text-align: left;
-  background: #ffffffdd;
-  border-radius: 6px;
+  background: #fff;
 }
 
 /* =========================
    Dice Key (On-screen)
    ========================= */
+#diceKeySection {
+  margin-top: 16px;
+}
+
 .horizontalKeyTable {
   border-collapse: collapse;
   width: 100%;
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 .horizontalKeyTable th,
 .horizontalKeyTable td {
   border: 1px solid #ccc;
-  padding: 4px 6px;
+  padding: 6px 8px;
   text-align: center;
-  font-size: 0.9rem;
 }
 
 .horizontalKeyTable th {
   background: #f2f2f2;
+}
+
+/* =========================
+   Confetti
+   ========================= */
+.confetti-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 6px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0.9;
+  animation-name: confetti-fall;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(120px) rotate(720deg);
+    opacity: 0;
+  }
 }
 
 /* =========================
@@ -257,48 +355,44 @@ button {
 /* =========================
    PRINT STYLES
    ========================= */
+@page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
 @media print {
-  /* Hide on-screen game UI + original boards + key + log + headings */
-  #gameUI,
-  #log,
-  #logTitle,
-  #screenBoards,
-  #keyTable,
-  #boardsTitle,
-  #diceKeyHeader {
-    display: none !important;
-  }
-
-  @page {
-    size: A4 landscape;
-    margin-top: 5mm;
-    margin-bottom: 10mm;
-    margin-left: 10mm;
-    margin-right: 10mm;
-  }
-
   body {
     font-family: Arial, sans-serif;
     font-size: 11pt;
     margin: 0 !important;
     padding: 0 !important;
-    background: #fff !important;      /* no forest in print */
+    background: #fff !important;
   }
 
-  h1,
-  h2,
-  h3 {
-    margin-top: 0;
-    margin-bottom: 4mm;
+  /* hide on-screen UI bits */
+  #topSection,
+  #diceKeySection,
+  #logSection,
+  #boardsTitle,
+  #screenBoards,
+  #log,
+  #logTitle,
+  #diceKeyHeader {
+    display: none !important;
   }
 
-  /* Show print pages, one per sheet */
+  /* show only print pages */
   .print-page {
     display: block;
     page-break-after: always;
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+  }
+
+  .print-page h2 {
+    margin-top: 0;
+    margin-bottom: 4mm;
   }
 
   .print-board {
@@ -315,7 +409,6 @@ button {
     margin-bottom: 3mm;
   }
 
-  /* 3×3 matrix layout for icons on each printed board */
   .print-board .items {
     margin-top: 3mm;
     display: grid;
@@ -349,55 +442,5 @@ button {
 
   .horizontalKeyTable th {
     background: #eee;
-  }
-}
-
-/* =========================
-   MOBILE TWEAKS
-   ========================= */
-@media (max-width: 768px) {
-  body {
-    padding: 10px;
-    /* Let the forest fill the whole screen – no flat green below */
-    background-size: cover;
-    background-position: center top;
-  }
-
-  #appWrapper {
-    max-width: 100%;
-  }
-
-  .boards {
-    gap: 16px;
-    margin: 10px auto;
-  }
-
-  .board {
-    width: 290px;
-    padding: 8px;
-  }
-
-  .board .item {
-    min-height: 44px;
-    padding: 2px;
-    font-size: 0.9rem;
-  }
-
-  .boardLog {
-    font-size: 0.8rem;
-    min-height: 60px;
-    padding: 6px;
-  }
-
-  .boardRollBtn {
-    padding: 8px 0;
-  }
-
-  .diceFaces .die {
-    font-size: 2.3rem;
-  }
-
-  #log {
-    height: 120px;
   }
 }

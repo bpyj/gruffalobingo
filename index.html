@@ -7,101 +7,104 @@
 </head>
 <body>
   <div id="appWrapper">
-
     <h1>Gruffalo Bingo</h1>
 
-    <!-- On-screen game UI -->
-    <div id="gameUI">
-      <div id="modeControls">
-        <strong>Mode:</strong>
-        <label><input type="radio" name="gameMode" value="two" checked> 2 Players</label>
-        <label><input type="radio" name="gameMode" value="one"> 1 Player</label>
+    <!-- Poster area: controls + boards -->
+    <div id="topSection">
+      <!-- 1) Controls Section -->
+      <section id="controlsSection">
+        <div id="modeControls">
+          <strong>Mode:</strong>
+          <label><input type="radio" name="gameMode" value="two" checked> 2 Players</label>
+          <label><input type="radio" name="gameMode" value="one"> 1 Player</label>
 
-        <span id="humanSideContainer">
-          &nbsp;|&nbsp;
-          <strong>You play:</strong>
-          <label><input type="radio" name="humanSide" value="mouse" checked> Mouse</label>
-          <label><input type="radio" name="humanSide" value="gruffalo"> Gruffalo</label>
-        </span>
-      </div>
-
-      <div>
-        <strong>Next player:</strong> <span id="currentPlayerLabel">Mouse</span><br>
-        <strong>Last roll by:</strong> <span id="lastPlayerLabel">-</span>
-      </div>
-
-      <div style="margin: 10px 0;">
-        <button id="resetBtn">Reset Game</button>
-        <button id="newBoardsBtn">New Boards</button>
-        <button id="printBtn">Print Boards</button>
-      </div>
-
-      <div>
-        <span id="diceResult">Dice: -</span> |
-        <span id="sumResult">Total: -</span> |
-        <span id="pictureResult">Picture: -</span>
-      </div>
-    </div>
-
-    <!-- On-screen boards -->
-    <h3 id="boardsTitle">Boards</h3>
-    <div class="boards" id="screenBoards">
-
-      <!-- MOUSE BOARD -->
-      <div class="board" id="mouseBoard">
-        <h2>Mouse</h2>
-        <div class="items"></div>
-
-        <!-- board log -->
-        <div class="boardLog" id="mouseBoardLog">Roll the dice to begin!</div>
-
-        <!-- ONLY PASS BUTTON -->
-        <div class="boardActions">
-          <button class="passBtn" data-player="mouse">Pass</button>
+          <span id="humanSideContainer">
+            &nbsp;|&nbsp;
+            <strong>You play:</strong>
+            <label><input type="radio" name="humanSide" value="mouse" checked> Mouse</label>
+            <label><input type="radio" name="humanSide" value="gruffalo"> Gruffalo</label>
+          </span>
         </div>
 
-        <!-- Roll Dice button -->
-        <button class="boardRollBtn" data-player="mouse">
-          <div class="diceFaces mouseDice">
-            <span class="die">⚀</span>
-            <span class="die">⚀</span>
+        <div id="statusRow">
+          <div>
+            <strong>Next player:</strong> <span id="currentPlayerLabel">Mouse</span><br>
+            <strong>Last roll by:</strong> <span id="lastPlayerLabel">-</span>
           </div>
-          <span class="rollText">Roll Dice</span>
-        </button>
-      </div>
 
-      <!-- GRUFFALO BOARD -->
-      <div class="board" id="gruffaloBoard">
-        <h2>Gruffalo</h2>
-        <div class="items"></div>
-
-        <!-- board log -->
-        <div class="boardLog" id="gruffaloBoardLog">Roll the dice to begin!</div>
-
-        <!-- ONLY PASS BUTTON -->
-        <div class="boardActions">
-          <button class="passBtn" data-player="gruffalo">Pass</button>
+          <div id="topButtons">
+            <button id="resetBtn">Reset Game</button>
+            <button id="newBoardsBtn">New Boards</button>
+            <button id="printBtn">Print Boards</button>
+          </div>
         </div>
 
-        <!-- Roll Dice button -->
-        <button class="boardRollBtn" data-player="gruffalo">
-          <div class="diceFaces gruffaloDice">
-            <span class="die">⚀</span>
-            <span class="die">⚀</span>
-          </div>
-          <span class="rollText">Roll Dice</span>
-        </button>
-      </div>
+        <div id="lastRollSummary">
+          <span id="diceResult">Dice: -</span> |
+          <span id="sumResult">Total: -</span> |
+          <span id="pictureResult">Picture: -</span>
+        </div>
+      </section>
 
+      <!-- 2) Board Section -->
+      <section id="boardSection">
+        <h3 id="boardsTitle">Boards</h3>
+
+        <div class="boards" id="screenBoards">
+          <!-- Mouse board -->
+          <div class="board" id="mouseBoard">
+            <h2>Mouse</h2>
+            <div class="items"></div>
+
+            <div class="boardLog" id="mouseBoardLog">Roll the dice to begin!</div>
+
+            <div class="boardActions">
+              <button class="passBtn" data-player="mouse">Pass</button>
+
+              <button class="boardRollBtn" data-player="mouse">
+                <div class="diceFaces mouseDice">
+                  <span class="die">⚀</span>
+                  <span class="die">⚀</span>
+                </div>
+                <div class="rollText">Roll Dice</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Gruffalo board -->
+          <div class="board" id="gruffaloBoard">
+            <h2>Gruffalo</h2>
+            <div class="items"></div>
+
+            <div class="boardLog" id="gruffaloBoardLog">Roll the dice to begin!</div>
+
+            <div class="boardActions">
+              <button class="passBtn" data-player="gruffalo">Pass</button>
+
+              <button class="boardRollBtn" data-player="gruffalo">
+                <div class="diceFaces gruffaloDice">
+                  <span class="die">⚀</span>
+                  <span class="die">⚀</span>
+                </div>
+                <div class="rollText">Roll Dice</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
+    <!-- 3) Dice Key Section (outside poster) -->
+    <section id="diceKeySection">
+      <h3 id="diceKeyHeader">Dice Key</h3>
+      <table class="horizontalKeyTable" id="keyTable"></table>
+    </section>
 
-    <!-- Dice Key -->
-    <h3 id="diceKeyHeader">Dice Key</h3>
-    <table class="horizontalKeyTable" id="keyTable"></table>
-
-    <h3 id="logTitle">Log</h3>
-    <div id="log"></div>
+    <!-- 4) Log Section (outside poster) -->
+    <section id="logSection">
+      <h3 id="logTitle">Log</h3>
+      <div id="log"></div>
+    </section>
 
     <!-- PRINT PAGE 1: Mouse -->
     <div class="print-page" id="printMouse">
@@ -126,8 +129,8 @@
       <h3>Dice Key</h3>
       <table class="horizontalKeyTable" id="keyTableGruffaloPrint"></table>
     </div>
-
-    <script src="script.js"></script>
   </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
