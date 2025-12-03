@@ -98,9 +98,6 @@ const lastPlayerLabel = document.getElementById("lastPlayerLabel");
 const resetBtn = document.getElementById("resetBtn");
 const newBoardsBtn = document.getElementById("newBoardsBtn");
 const printBtn = document.getElementById("printBtn");
-const diceResult = document.getElementById("diceResult");
-const sumResult = document.getElementById("sumResult");
-const pictureResult = document.getElementById("pictureResult");
 const logDiv = document.getElementById("log");
 
 const mouseBoardEl = document.getElementById("mouseBoard");
@@ -336,9 +333,6 @@ function takeTurn(player, isComputer = false) {
 
   lastPlayerLabel.textContent = capitalize(player);
 
-  diceResult.textContent = `Dice: ${d1} + ${d2}`;
-  sumResult.textContent = `Total: ${total}`;
-  pictureResult.textContent = `Picture: ${prettyNames[picture] || "-"}`;
   updateDiceIcons(player, d1, d2);
 
   log(`\n${capitalize(player)} rolled ${d1} + ${d2} = ${total}.`);
@@ -616,9 +610,6 @@ function resetGame(reRenderBoardsToo = true) {
   currentPlayerLabel.textContent = "Mouse";
   lastPlayerLabel.textContent = "-";
 
-  diceResult.textContent = "Dice: -";
-  sumResult.textContent = "Total: -";
-  pictureResult.textContent = "Picture: -";
 
   logDiv.textContent = "Game reset.";
   updateBoardLog("mouse", null);
@@ -702,6 +693,24 @@ function init() {
   humanSideRadios.forEach((r) =>
     r.addEventListener("change", handleModeChange)
   );
+
+  // Hints toggle
+  const hintsToggle = document.getElementById("hintsToggle");
+  const boardSection = document.getElementById("boardSection");
+
+  // Apply current state immediately (in case user toggled earlier)
+  if (!hintsToggle.checked) {
+      boardSection.classList.add("hints-off");
+  }
+
+  hintsToggle.addEventListener("change", () => {
+      if (hintsToggle.checked) {
+          boardSection.classList.remove("hints-off");
+      } else {
+          boardSection.classList.add("hints-off");
+      }
+  });
+
 }
 
 init();

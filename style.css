@@ -15,7 +15,7 @@ body {
   flex-direction: column;
   align-items: center;
   font-family: Arial, sans-serif;
-  background: #fafafa;
+  background: #e8f4ea;
   text-align: center;
 }
 
@@ -344,6 +344,15 @@ button:disabled {
     opacity: 0;
   }
 }
+
+/* =========================
+   Hint Toggle (Hide Board Logs)
+   ========================= */
+
+#boardSection.hints-off .boardLog {
+    display: none !important;
+}
+
 
 /* =========================
    Print Pages (hidden on screen)

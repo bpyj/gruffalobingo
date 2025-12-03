@@ -11,20 +11,33 @@
 
     <!-- Poster area: controls + boards -->
     <div id="topSection">
-      <!-- 1) Controls Section -->
-      <section id="controlsSection">
-        <div id="modeControls">
-          <strong>Mode:</strong>
-          <label><input type="radio" name="gameMode" value="two" checked> 2 Players</label>
-          <label><input type="radio" name="gameMode" value="one"> 1 Player</label>
+      <!-- =========================
+           Controls Section
+           ========================= -->
+      <div id="controlsSection">
 
-          <span id="humanSideContainer">
-            &nbsp;|&nbsp;
-            <strong>You play:</strong>
-            <label><input type="radio" name="humanSide" value="mouse" checked> Mouse</label>
-            <label><input type="radio" name="humanSide" value="gruffalo"> Gruffalo</label>
-          </span>
+        <!-- existing mode controls remain unchanged -->
+        <div id="modeControls">
+            <label><input type="radio" name="gameMode" value="two" checked> 2-Player</label>
+            <label><input type="radio" name="gameMode" value="one"> 1-Player</label>
+
+            <span id="humanSideContainer">
+              |
+              <label><input type="radio" name="humanSide" value="mouse" checked> Mouse</label>
+              <label><input type="radio" name="humanSide" value="gruffalo"> Gruffalo</label>
+            </span>
         </div>
+
+        <!-- ⭐ NEW: Show Hints toggle -->
+        <div id="hintToggleContainer">
+            <label>
+              <input type="checkbox" id="hintsToggle" checked>
+              Show Hints
+            </label>
+        </div>
+
+      </div>
+
 
         <div id="statusRow">
           <div>
@@ -39,11 +52,7 @@
           </div>
         </div>
 
-        <div id="lastRollSummary">
-          <span id="diceResult">Dice: -</span> |
-          <span id="sumResult">Total: -</span> |
-          <span id="pictureResult">Picture: -</span>
-        </div>
+
       </section>
 
       <!-- 2) Board Section -->
