@@ -28,7 +28,7 @@ const boards = {
     "snake",
     "red_squirrel",
   ],
-  gruffalo: [
+  fox: [
     "owl",
     "tree",
     "frog",
@@ -55,58 +55,88 @@ const prettyNames = {
   tree: "🌲 Tree",
 };
 
-// inverse mapping: picture -> dice total
+// emoji-only version for on-screen cards
+const prettyIcons = {
+  mushroom: "🍄",
+  frog: "🐸",
+  pine_cone: "🌰",
+  owl: "🦉",
+  flowers: "🌼",
+  fox: "🦊",
+  brown_leaf: "🍁",
+  snake: "🐍",
+  green_leaves: "🍃",
+  red_squirrel: "🐿️",
+  tree: "🌲",
+};
+
+// picture → total
 const pictureToTotal = {};
 Object.entries(sumToPicture).forEach(([total, pic]) => {
   pictureToTotal[pic] = Number(total);
 });
-
-// pool of all pictures for random boards
-const allPicturesPool = [...new Set(Object.values(sumToPicture))];
 
 // =========================
 // State
 // =========================
 let covered = {
   mouse: new Set(),
-  gruffalo: new Set(),
+  fox: new Set(),
 };
 
-let lastCovered = { mouse: null, gruffalo: null };
+let lastCovered = { mouse: null, fox: null };
 
-// picture that a human must tap to cover
-let pendingCover = { mouse: null, gruffalo: null };
+// Last roll info waiting for a decision (Pass or Cover-by-tap)
+let pendingRoll = { mouse: null, fox: null };
 
-// roll info waiting for either "cover by tap" or "pass"
-let pendingRoll = { mouse: null, gruffalo: null };
+// Which picture to highlight as "candidate to cover"
+let pendingHighlight = { mouse: null, fox: null };
 
-// true if the *only* allowed decision is "pass"
-let passPending = { mouse: false, gruffalo: false };
+// Whether the player still has to Pass / Tap
+let decisionPending = { mouse: false, fox: false };
 
 let currentPlayer = "mouse";
 let gameMode = "two"; // "two" or "one"
-let humanSide = "mouse"; // in 1-player mode
+let humanSide = "mouse"; // "mouse" or "fox"
 let gameOver = false;
-let winnerPlayer = null;
+let difficultyMode = "hard"; // "easy" or "hard"
+
+let winner = null;
+
+// Pool of all pictures for random boards
+const allPicturesPool = [...new Set(Object.values(sumToPicture))];
+
+// For "easy" mode, forbid certain sums (2, 12 → mushroom, tree)
+const easyForbiddenSums = [2, 12];
+const easyForbiddenPics = easyForbiddenSums
+  .map((s) => sumToPicture[s])
+  .filter((p) => !!p);
+
+function getPicturePool() {
+  if (difficultyMode === "easy") {
+    // exclude forbidden pictures
+    return allPicturesPool.filter((pic) => !easyForbiddenPics.includes(pic));
+  }
+  // hard mode → full pool
+  return [...allPicturesPool];
+}
 
 // =========================
 // DOM references
 // =========================
 const keyTable = document.getElementById("keyTable");
-const currentPlayerLabel = document.getElementById("currentPlayerLabel");
-const lastPlayerLabel = document.getElementById("lastPlayerLabel");
 const resetBtn = document.getElementById("resetBtn");
 const newBoardsBtn = document.getElementById("newBoardsBtn");
 const printBtn = document.getElementById("printBtn");
 const logDiv = document.getElementById("log");
 
 const mouseBoardEl = document.getElementById("mouseBoard");
-const gruffaloBoardEl = document.getElementById("gruffaloBoard");
+const foxBoardEl = document.getElementById("foxBoard");
 const mouseItemsContainer = mouseBoardEl.querySelector(".items");
-const gruffaloItemsContainer = gruffaloBoardEl.querySelector(".items");
+const foxItemsContainer = foxBoardEl.querySelector(".items");
 
 const mouseBoardLogEl = document.getElementById("mouseBoardLog");
-const gruffaloBoardLogEl = document.getElementById("gruffaloBoardLog");
+const foxBoardLogEl = document.getElementById("foxBoardLog");
 
 const boardRollBtns = document.querySelectorAll(".boardRollBtn");
 const passBtns = document.querySelectorAll(".passBtn");
@@ -115,12 +145,14 @@ const modeControls = document.getElementById("modeControls");
 const humanSideContainer = document.getElementById("humanSideContainer");
 const modeRadios = document.querySelectorAll("input[name='gameMode']");
 const humanSideRadios = document.querySelectorAll("input[name='humanSide']");
+const hintRadios = document.querySelectorAll("input[name='showHints']");
+const difficultyRadios = document.querySelectorAll("input[name='difficulty']");
 
 // print elements
 const mouseBoardPrintContainer = document.getElementById("mouseBoardPrint");
-const gruffaloBoardPrintContainer = document.getElementById("gruffaloBoardPrint");
+const foxBoardPrintContainer = document.getElementById("foxBoardPrint");
 const keyTableMousePrint = document.getElementById("keyTableMousePrint");
-const keyTableGruffaloPrint = document.getElementById("keyTableGruffaloPrint");
+const keyTableFoxPrint = document.getElementById("keyTableFoxPrint");
 
 // =========================
 // Helpers
@@ -154,8 +186,7 @@ function diceFace(num) {
 }
 
 function updateDiceIcons(player, d1, d2) {
-  const selector =
-    player === "mouse" ? ".mouseDice .die" : ".gruffaloDice .die";
+  const selector = player === "mouse" ? ".mouseDice .die" : ".foxDice .die";
   const diceEls = document.querySelectorAll(selector);
   if (diceEls.length >= 2) {
     diceEls[0].textContent = diceFace(d1);
@@ -163,9 +194,12 @@ function updateDiceIcons(player, d1, d2) {
   }
 }
 
-function isHumanPlayer(player) {
-  if (gameMode === "two") return true;
-  return player === humanSide;
+// show/hide board logs based on hint toggle
+function updateHintVisibility() {
+  const hintValue = [...hintRadios].find((r) => r.checked)?.value || "on";
+  const show = hintValue === "on";
+  mouseBoardLogEl.style.display = show ? "block" : "none";
+  foxBoardLogEl.style.display = show ? "block" : "none";
 }
 
 // =========================
@@ -173,10 +207,12 @@ function isHumanPlayer(player) {
 // =========================
 function renderHorizontalKey(tableEl) {
   tableEl.innerHTML = "";
-  const totals = Object.keys(sumToPicture).map(Number).sort((a, b) => a - b);
+  const totals = Object.keys(sumToPicture)
+    .map(Number)
+    .sort((a, b) => a - b);
 
   const headerRow = document.createElement("tr");
-  headerRow.appendChild(document.createElement("th")); // corner
+  headerRow.appendChild(document.createElement("th")); // corner cell
   totals.forEach((t) => {
     const th = document.createElement("th");
     th.textContent = t;
@@ -205,7 +241,7 @@ function renderKeyOnScreen() {
 
 function renderPrintKeys() {
   renderHorizontalKey(keyTableMousePrint);
-  renderHorizontalKey(keyTableGruffaloPrint);
+  renderHorizontalKey(keyTableFoxPrint);
 }
 
 // =========================
@@ -213,7 +249,7 @@ function renderPrintKeys() {
 // =========================
 function renderBoards() {
   renderBoardWithState("mouse", mouseItemsContainer);
-  renderBoardWithState("gruffalo", gruffaloItemsContainer);
+  renderBoardWithState("fox", foxItemsContainer);
 }
 
 function renderBoardWithState(playerKey, container) {
@@ -225,21 +261,21 @@ function renderBoardWithState(playerKey, container) {
     div.dataset.player = playerKey;
     div.dataset.pic = pic;
 
+    const total = pictureToTotal[pic] ?? "?";
+
     if (covered[playerKey].has(pic)) {
       div.classList.add("covered");
       if (lastCovered[playerKey] === pic) {
         div.classList.add("latest");
       }
-    } else if (pendingCover[playerKey] === pic) {
+    } else if (pendingHighlight[playerKey] === pic) {
       div.classList.add("pending");
     }
 
-    const total = pictureToTotal[pic];
-    const fullLabel = prettyNames[pic] || pic;
-    const iconOnly = fullLabel.split(" ")[0] || fullLabel;
+    // Show "number → emoji" only, no name
+    const icon = prettyIcons[pic] || pic;
+    div.textContent = `${total} → ${icon}`;
 
-    // Number → icon (e.g. "2 → 🍄")
-    div.textContent = `${total ?? "?"} → ${iconOnly}`;
     container.appendChild(div);
   });
 }
@@ -249,7 +285,7 @@ function renderBoardWithState(playerKey, container) {
 // =========================
 function renderPrintBoards() {
   renderBoardPlain("mouse", mouseBoardPrintContainer);
-  renderBoardPlain("gruffalo", gruffaloBoardPrintContainer);
+  renderBoardPlain("fox", foxBoardPrintContainer);
 }
 
 function renderBoardPlain(playerKey, container) {
@@ -266,7 +302,7 @@ function renderBoardPlain(playerKey, container) {
 // Board logs inside boards
 // =========================
 function updateBoardLog(player, roll, status) {
-  const el = player === "mouse" ? mouseBoardLogEl : gruffaloBoardLogEl;
+  const el = player === "mouse" ? mouseBoardLogEl : foxBoardLogEl;
 
   if (!roll) {
     el.innerText = "Roll the dice to begin!";
@@ -279,16 +315,16 @@ function updateBoardLog(player, roll, status) {
   let actionText = "";
   switch (status) {
     case "no-picture":
-      actionText = "Action: No picture for this total.\nPress Pass.";
+      actionText = "Action: No picture for this total.";
       break;
     case "not-on-board":
-      actionText = "Action: Picture not on this board.\nPress Pass.";
+      actionText = "Action: Picture not on this board.";
       break;
     case "already-covered":
-      actionText = "Action: Picture already covered.\nPress Pass.";
+      actionText = "Action: Picture already covered.";
       break;
-    case "tap-to-cover":
-      actionText = `Action: Tap ${picLabel} to cover it.`;
+    case "can-cover":
+      actionText = `Action: Tap ${picLabel} to cover it, or Pass.`;
       break;
     case "covered":
       actionText = `Action: ${picLabel} covered.`;
@@ -297,7 +333,7 @@ function updateBoardLog(player, roll, status) {
       actionText = "Action: Passed.";
       break;
     case "bingo":
-      actionText = `Action: ${picLabel} covered.\n🎉 Gruffalo Bingo!`;
+      actionText = `Action: ${picLabel} covered. 🎉 Forest Bingo!`;
       break;
     default:
       actionText = "";
@@ -313,15 +349,20 @@ function updateBoardLog(player, roll, status) {
 // =========================
 // Game Logic
 // =========================
+function isHumanPlayer(player) {
+  if (gameMode === "two") return true;
+  return player === humanSide;
+}
+
 function takeTurn(player, isComputer = false) {
   if (gameOver) return;
 
-  // Must finish current decision (tap to cover or pass) before rolling again
-  if (!isComputer && (pendingCover[player] || passPending[player])) {
+  // Must decide (tap/pass) before rolling again
+  if (!isComputer && decisionPending[player]) {
     log(
       `${capitalize(
         player
-      )} must finish this turn (cover or pass) before rolling again.`
+      )} must tap to cover or press Pass before rolling again.`
     );
     return;
   }
@@ -331,103 +372,138 @@ function takeTurn(player, isComputer = false) {
   const total = d1 + d2;
   const picture = sumToPicture[total];
 
-  lastPlayerLabel.textContent = capitalize(player);
-
   updateDiceIcons(player, d1, d2);
-
   log(`\n${capitalize(player)} rolled ${d1} + ${d2} = ${total}.`);
 
-  const boardPics = boards[player];
-  let status = "";
   let canCover = false;
+  let reason = "";
+  const boardPics = boards[player];
 
   if (!picture) {
-    status = "no-picture";
+    reason = "no-picture";
   } else if (!boardPics.includes(picture)) {
-    status = "not-on-board";
+    reason = "not-on-board";
   } else if (covered[player].has(picture)) {
-    status = "already-covered";
+    reason = "already-covered";
   } else {
-    status = "tap-to-cover";
     canCover = true;
+    reason = "can-cover";
   }
 
-  const rollInfo = { d1, d2, total, picture };
+  const rollInfo = { d1, d2, total, picture, canCover, reason };
   pendingRoll[player] = rollInfo;
-  pendingCover[player] = null;
-  passPending[player] = false;
+  decisionPending[player] = true;
 
-  if (canCover) {
-    // Covering path
-    if (!isHumanPlayer(player) || isComputer) {
-      // computer auto-covers
-      doCover(player, rollInfo, picture);
-      return;
+  // Highlight the tile if it can be covered
+  pendingHighlight[player] = canCover ? picture : null;
+  renderBoards();
+
+  // Computer turn → auto-decide
+  if (!isHumanPlayer(player) || isComputer) {
+    if (canCover) {
+      applyCover(player, rollInfo);
+    } else {
+      completeTurnAsPass(player, rollInfo);
     }
+    return;
+  }
 
-    // human: must tap the highlighted item
-    pendingCover[player] = picture;
-    updateBoardLog(player, rollInfo, status);
-    renderBoards();
-    updateRollButtonsEnabled();
-    updatePassButtonsEnabled();
-    updateBoardHighlight();
-  } else {
-    // Must pass
-    if (!isHumanPlayer(player) || isComputer) {
-      doPass(player, rollInfo);
-      return;
-    }
+  // Human: show log and wait for tap or Pass
+  updateBoardLog(player, rollInfo, reason);
+  updateDecisionButtons();
+  updateRollButtonsEnabled();
+  updateBoardHighlight();
+}
 
-    passPending[player] = true;
-    updateBoardLog(player, rollInfo, status);
-    renderBoards();
-    updateRollButtonsEnabled();
-    updatePassButtonsEnabled();
-    updateBoardHighlight();
+// -------------------------
+// Confetti Helpers
+// -------------------------
+function triggerConfettiFor(player) {
+  const boardEl = player === "mouse" ? mouseBoardEl : foxBoardEl;
+  if (!boardEl) return;
+
+  const container = boardEl.querySelector(".confetti-container");
+  if (!container) return;
+
+  // Clear any old confetti
+  container.innerHTML = "";
+
+  const colors = ["#ffb3ba", "#ffdfba", "#ffffba", "#baffc9", "#bae1ff"];
+  const pieceCount = 80;
+
+  for (let i = 0; i < pieceCount; i++) {
+    const piece = document.createElement("div");
+    piece.className = "confetti-piece";
+
+    // Random color
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.backgroundColor = color;
+
+    // Random horizontal position
+    const left = Math.random() * 100;
+    piece.style.left = left + "%";
+
+    // Start slightly above the board
+    piece.style.top = "-10px";
+
+    // Random timing
+    const delay = Math.random() * 0.5; // 0–0.5s
+    const duration = 1 + Math.random(); // 1–2s
+    piece.style.animationDelay = delay + "s";
+    piece.style.animationDuration = duration + "s";
+
+    container.appendChild(piece);
   }
 }
 
-function doCover(player, rollInfo, picture) {
+
+function applyCover(player, rollInfo) {
+  const { picture } = rollInfo;
+  if (!picture) return;
+
   lastCovered[player] = picture;
   covered[player].add(picture);
-  pendingCover[player] = null;
-  pendingRoll[player] = null;
-  passPending[player] = false;
 
   log(`${capitalize(player)} covers ${prettyNames[picture]}.`);
+
   renderBoards();
 
   if (hasWon(player)) {
-    log(`\n*** ${capitalize(player)} shouts "Gruffalo Bingo!" ***`);
-    winnerPlayer = player;
+    log(`*** ${capitalize(player)} shouts "Forest Bingo!" ***`);
     updateBoardLog(player, rollInfo, "bingo");
+
     gameOver = true;
+    winner = player;
+
+    // 🎉 Trigger confetti for the winning board
+    triggerConfettiFor(player);
+
     updateRollButtonsEnabled();
-    updatePassButtonsEnabled();
-    updateBoardHighlight();
-    triggerConfettiOnBoard(player);
+    updateBoardHighlight(); // keep highlight on winner
     return;
   }
 
   updateBoardLog(player, rollInfo, "covered");
+  decisionPending[player] = false;
+  pendingRoll[player] = null;
+  pendingHighlight[player] = null;
+
   switchToNextPlayer(player);
+  updateDecisionButtons();
   updateRollButtonsEnabled();
-  updatePassButtonsEnabled();
   updateBoardHighlight();
   maybeRunComputerTurn();
 }
 
-function doPass(player, rollInfo) {
-  log(`${capitalize(player)} passes.`);
-  pendingRoll[player] = null;
-  pendingCover[player] = null;
-  passPending[player] = false;
-
+function completeTurnAsPass(player, rollInfo) {
   updateBoardLog(player, rollInfo, "pass");
+  decisionPending[player] = false;
+  pendingRoll[player] = null;
+  pendingHighlight[player] = null;
+
   switchToNextPlayer(player);
+  updateDecisionButtons();
   updateRollButtonsEnabled();
-  updatePassButtonsEnabled();
   updateBoardHighlight();
   maybeRunComputerTurn();
 }
@@ -437,13 +513,10 @@ function hasWon(playerKey) {
 }
 
 function switchToNextPlayer(playerJustPlayed) {
-  currentPlayer = playerJustPlayed === "mouse" ? "gruffalo" : "mouse";
-  currentPlayerLabel.textContent = capitalize(currentPlayer);
+  currentPlayer = playerJustPlayed === "mouse" ? "fox" : "mouse";
 }
 
-// =========================
-// Board click – human taps a cell to cover
-// =========================
+// board click → human taps a cell to cover
 function handleBoardClick(event) {
   const target = event.target.closest(".item");
   if (!target) return;
@@ -452,15 +525,16 @@ function handleBoardClick(event) {
   const pic = target.dataset.pic;
   if (!player || !pic) return;
 
-  if (gameOver) return;
-  if (player !== currentPlayer) return;
+  if (player !== currentPlayer || gameOver) return;
   if (!isHumanPlayer(player)) return;
-  if (!pendingCover[player] || pendingCover[player] !== pic) return;
+  if (!decisionPending[player]) return;
 
   const rollInfo = pendingRoll[player];
   if (!rollInfo) return;
+  if (!rollInfo.canCover || rollInfo.picture !== pic) return;
 
-  doCover(player, rollInfo, pic);
+  // Now apply cover
+  applyCover(player, rollInfo);
 }
 
 // =========================
@@ -481,42 +555,48 @@ function updateRollButtonsEnabled() {
       }
     }
 
-    // NOTE: we do NOT disable for pendingCover / passPending,
-    // so the dice box never visually "fades"; logic blocks in takeTurn().
+    // We do NOT disable based on decisionPending,
+    // so the box never fades; logic is blocked in takeTurn().
     btn.disabled = !enabled;
   });
 }
 
-function updatePassButtonsEnabled() {
+function updateDecisionButtons() {
   passBtns.forEach((btn) => {
     const p = btn.dataset.player;
     let enabled =
       !gameOver &&
-      passPending[p] &&
+      decisionPending[p] &&
       p === currentPlayer &&
-      isHumanPlayer(p);
+      isHumanPlayer(p) &&
+      // only allow Pass if there's nothing to cover
+      (pendingRoll[p] && !pendingRoll[p].canCover);
     btn.disabled = !enabled;
   });
 }
 
 function updateBoardHighlight() {
-  mouseBoardEl.classList.remove("current-turn");
-  gruffaloBoardEl.classList.remove("current-turn");
+  // If the game has ended and we have a winner
+  if (gameOver && winner) {
+    const mouseWin = winner === "mouse";
+    const foxWin = winner === "fox";
 
-  if (gameOver && winnerPlayer) {
-    if (winnerPlayer === "mouse") {
-      mouseBoardEl.classList.add("current-turn");
-    } else if (winnerPlayer === "gruffalo") {
-      gruffaloBoardEl.classList.add("current-turn");
-    }
+    // Winner board stays highlighted AND pulses
+    mouseBoardEl.classList.toggle("current-turn", mouseWin);
+    mouseBoardEl.classList.toggle("winner", mouseWin);
+
+    foxBoardEl.classList.toggle("current-turn", foxWin);
+    foxBoardEl.classList.toggle("winner", foxWin);
+
     return;
   }
 
-  if (currentPlayer === "mouse") {
-    mouseBoardEl.classList.add("current-turn");
-  } else {
-    gruffaloBoardEl.classList.add("current-turn");
-  }
+  // Normal gameplay (no winner yet)
+  mouseBoardEl.classList.remove("winner");
+  foxBoardEl.classList.remove("winner");
+
+  mouseBoardEl.classList.toggle("current-turn", currentPlayer === "mouse");
+  foxBoardEl.classList.toggle("current-turn", currentPlayer === "fox");
 }
 
 function handleModeChange() {
@@ -536,6 +616,20 @@ function handleModeChange() {
   humanSide = sideValue;
 
   resetGame(false);
+  updateRollButtonsEnabled();
+  updateBoardHighlight();
+}
+
+function handleDifficultyChange() {
+  const diffValue =
+    [...difficultyRadios].find((r) => r.checked)?.value || "hard";
+  difficultyMode = diffValue;
+  // regenerate boards to respect the new difficulty
+  generateNewBoards();
+}
+
+function handleHintChange() {
+  updateHintVisibility();
 }
 
 function maybeRunComputerTurn() {
@@ -550,95 +644,66 @@ function maybeRunComputerTurn() {
 }
 
 // =========================
-// Confetti
-// =========================
-function triggerConfettiOnBoard(player) {
-  const boardEl = player === "mouse" ? mouseBoardEl : gruffaloBoardEl;
-  if (!boardEl) return;
-
-  const existing = boardEl.querySelector(".confetti-container");
-  if (existing) {
-    existing.remove();
-  }
-
-  const container = document.createElement("div");
-  container.className = "confetti-container";
-  boardEl.appendChild(container);
-
-  const colors = ["#ff5252", "#ffb300", "#4caf50", "#2196f3", "#9c27b0"];
-
-  const pieces = 60;
-  for (let i = 0; i < pieces; i++) {
-    const piece = document.createElement("div");
-    piece.className = "confetti-piece";
-    const left = Math.random() * 100;
-    const delay = Math.random() * 0.4;
-    const duration = 1 + Math.random() * 0.7;
-    const color = colors[Math.floor(Math.random() * colors.length)];
-
-    piece.style.left = left + "%";
-    piece.style.top = "-10px";
-    piece.style.backgroundColor = color;
-    piece.style.animationDuration = duration + "s";
-    piece.style.animationDelay = delay + "s";
-
-    container.appendChild(piece);
-  }
-
-  // remove container after animation finishes
-  setTimeout(() => {
-    container.remove();
-  }, 2500);
-}
-
-// =========================
 // Reset & New Boards
 // =========================
 function resetGame(reRenderBoardsToo = true) {
   covered = {
     mouse: new Set(),
-    gruffalo: new Set(),
+    fox: new Set(),
   };
-  lastCovered = { mouse: null, gruffalo: null };
-  pendingCover = { mouse: null, gruffalo: null };
-  pendingRoll = { mouse: null, gruffalo: null };
-  passPending = { mouse: false, gruffalo: false };
+  lastCovered = { mouse: null, fox: null };
+  pendingRoll = { mouse: null, fox: null };
+  pendingHighlight = { mouse: null, fox: null };
+  decisionPending = { mouse: false, fox: false };
 
   gameOver = false;
-  winnerPlayer = null;
   currentPlayer = "mouse";
-  currentPlayerLabel.textContent = "Mouse";
-  lastPlayerLabel.textContent = "-";
+  winner = null;
 
+  // 🔁 Clear confetti from both boards
+  const mouseConfetti = mouseBoardEl.querySelector(".confetti-container");
+  const foxConfetti = foxBoardEl.querySelector(".confetti-container");
+  if (mouseConfetti) mouseConfetti.innerHTML = "";
+  if (foxConfetti) foxConfetti.innerHTML = "";
 
   logDiv.textContent = "Game reset.";
   updateBoardLog("mouse", null);
-  updateBoardLog("gruffalo", null);
+  updateBoardLog("fox", null);
 
   if (reRenderBoardsToo) {
     renderBoards();
     renderPrintBoards();
   }
   updateDiceIcons("mouse", 1, 1);
-  updateDiceIcons("gruffalo", 1, 1);
+  updateDiceIcons("fox", 1, 1);
 
   updateRollButtonsEnabled();
-  updatePassButtonsEnabled();
+  updateDecisionButtons();
   updateBoardHighlight();
 
-  // if one-player and human is not Mouse, let computer start
   if (gameMode === "one" && humanSide !== "mouse") {
     currentPlayer = "mouse";
-    currentPlayerLabel.textContent = "Mouse";
     updateBoardHighlight();
     maybeRunComputerTurn();
   }
 }
 
 function generateNewBoards() {
-  boards.mouse = sampleDistinct(allPicturesPool, 9);
-  boards.gruffalo = sampleDistinct(allPicturesPool, 9);
-  log("Generating new random boards…");
+  const pool = getPicturePool();
+  // safety: make sure we have enough distinct pictures
+  if (pool.length < 9) {
+    console.warn(
+      "Not enough pictures in pool for 3×3 boards with current difficulty."
+    );
+    return;
+  }
+  boards.mouse = sampleDistinct(pool, 9);
+  boards.fox = sampleDistinct(pool, 9);
+  log(
+    "Generating new " +
+      (difficultyMode === "easy" ? "EASY" : "HARD") +
+      " boards…"
+  );
   renderPrintBoards();
   resetGame(true);
 }
@@ -648,7 +713,7 @@ function generateNewBoards() {
 // =========================
 function init() {
   updateDiceIcons("mouse", 1, 1);
-  updateDiceIcons("gruffalo", 1, 1);
+  updateDiceIcons("fox", 1, 1);
   renderBoards();
   renderPrintBoards();
   renderKeyOnScreen();
@@ -656,9 +721,10 @@ function init() {
   log("Game ready. Mouse starts.");
 
   updateBoardLog("mouse", null);
-  updateBoardLog("gruffalo", null);
+  updateBoardLog("fox", null);
+  updateHintVisibility();
   updateRollButtonsEnabled();
-  updatePassButtonsEnabled();
+  updateDecisionButtons();
   updateBoardHighlight();
 
   resetBtn.addEventListener("click", () => resetGame(true));
@@ -669,8 +735,10 @@ function init() {
     btn.addEventListener("click", () => {
       const player = btn.dataset.player;
       if (!player || gameOver) return;
+
       if (gameMode === "one" && player !== humanSide) return;
       if (player !== currentPlayer) return;
+
       takeTurn(player, false);
     });
   });
@@ -679,38 +747,25 @@ function init() {
     btn.addEventListener("click", () => {
       const player = btn.dataset.player;
       if (!player || gameOver) return;
-      if (!isHumanPlayer(player)) return;
       if (player !== currentPlayer) return;
-      if (!passPending[player] || !pendingRoll[player]) return;
-      doPass(player, pendingRoll[player]);
+      if (!isHumanPlayer(player)) return;
+      const rollInfo = pendingRoll[player];
+      if (!rollInfo || rollInfo.canCover) return;
+      completeTurnAsPass(player, rollInfo);
     });
   });
 
   mouseBoardEl.addEventListener("click", handleBoardClick);
-  gruffaloBoardEl.addEventListener("click", handleBoardClick);
+  foxBoardEl.addEventListener("click", handleBoardClick);
 
   modeRadios.forEach((r) => r.addEventListener("change", handleModeChange));
   humanSideRadios.forEach((r) =>
     r.addEventListener("change", handleModeChange)
   );
-
-  // Hints toggle
-  const hintsToggle = document.getElementById("hintsToggle");
-  const boardSection = document.getElementById("boardSection");
-
-  // Apply current state immediately (in case user toggled earlier)
-  if (!hintsToggle.checked) {
-      boardSection.classList.add("hints-off");
-  }
-
-  hintsToggle.addEventListener("change", () => {
-      if (hintsToggle.checked) {
-          boardSection.classList.remove("hints-off");
-      } else {
-          boardSection.classList.add("hints-off");
-      }
-  });
-
+  difficultyRadios.forEach((r) =>
+    r.addEventListener("change", handleDifficultyChange)
+  );
+  hintRadios.forEach((r) => r.addEventListener("change", handleHintChange));
 }
 
 init();

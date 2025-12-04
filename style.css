@@ -34,22 +34,14 @@ body {
   padding: 16px 18px 22px;
   border-radius: 16px;
   overflow: hidden;
-
-  /* ⭐ Poster image ONLY — no gradient */
   background: #f0f9f0 url("images/forest-bg2.png") no-repeat center top;
-  background-size: cover; /* keep all content inside poster, allow some stretch */
-}
-
-/* ⭐ Remove gradient overlay completely */
-#topSection::before {
-  content: none;
+  background-size: cover;
 }
 
 /* Keep content above background */
 #topSection > * {
   position: relative;
 }
-
 
 /* =========================
    Controls Section
@@ -75,39 +67,24 @@ body {
   display: inline;
 }
 
-#statusRow {
-  display: flex;
-  flex-direction: column;      /* stack text and buttons */
-  align-items: center;         /* center horizontally */
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 6px;
+/* Difficulty + hints row */
+#difficultyControls {
+  font-size: 0.95rem;
+  margin-bottom: 8px;
 }
 
-/* ensure the text block is centered as well */
-#statusRow > div:first-child {
-  text-align: center;
-}
-
-
-#topButtons {
+/* Top buttons row */
+.topButtons {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
-}
-
-#lastRollSummary {
-  font-size: 0.95rem;
+  margin-top: 6px;
 }
 
 /* =========================
    Boards Section (On-screen)
    ========================= */
-#boardSection {
-  margin-top: 10px;
-}
-
 .boards {
   display: flex;
   justify-content: center;
@@ -148,9 +125,32 @@ body {
   transition: 0.25s;
 }
 
+/* Winner pulse effect */
+.board.winner {
+  animation: winnerPulse 1.2s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+/* Pulse keyframes */
+@keyframes winnerPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 18px rgba(76, 175, 80, 0.9);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.6);
+  }
+}
+
 /* 3×3 grid for ONSCREEN boards */
 .board .items {
   margin-top: 6px;
+  margin-bottom: 12px;  /* space between grid and Pass button */
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
@@ -213,7 +213,7 @@ body {
 /* =========================
    Board Actions: Pass + Roll
    ========================= */
-.boardActions {
+.boardButtonsRow {
   margin-top: 8px;
   display: flex;
   flex-direction: column;
@@ -238,7 +238,7 @@ button:disabled {
 /* pass button */
 .passBtn {
   width: 60%;
-  margin: 0 auto;
+  margin: 14px auto 12px auto;  /* space above and below Pass button */
   background: #ffe0e0;
 }
 
@@ -274,10 +274,6 @@ button:disabled {
 /* =========================
    Main Log (bottom log panel)
    ========================= */
-#logSection {
-  margin-top: 16px;
-}
-
 #log {
   white-space: pre-line;
   border: 1px solid #ccc;
@@ -321,6 +317,7 @@ button:disabled {
   inset: 0;
   pointer-events: none;
   overflow: visible;
+  z-index: 2;  /* above text & grid */
 }
 
 .confetti-piece {
@@ -344,15 +341,6 @@ button:disabled {
     opacity: 0;
   }
 }
-
-/* =========================
-   Hint Toggle (Hide Board Logs)
-   ========================= */
-
-#boardSection.hints-off .boardLog {
-    display: none !important;
-}
-
 
 /* =========================
    Print Pages (hidden on screen)
